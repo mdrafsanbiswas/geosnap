@@ -2,8 +2,8 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../domain/entities/geo_point.dart';
 import '../../domain/repositories/attendance_repository.dart';
-import '../datasources/device_location.dart';
-import '../datasources/office_location_local.dart';
+import '../data_sources/device_location.dart';
+import '../data_sources/office_location_local.dart';
 import '../models/location_model.dart';
 
 class AttendanceRepositoryImpl implements AttendanceRepository {
