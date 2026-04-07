@@ -49,6 +49,7 @@ class GeolocatorDeviceLocationDataSource implements DeviceLocationDataSource {
     await _ensureLocationAccess();
 
     Position? previousAcceptedPosition;
+    final recentAcceptedPositions = <Position>[];
     await for (final position in Geolocator.getPositionStream(
       locationSettings: _streamLocationSettings,
     )) {
@@ -61,7 +62,13 @@ class GeolocatorDeviceLocationDataSource implements DeviceLocationDataSource {
       }
 
       previousAcceptedPosition = position;
-      yield position;
+      recentAcceptedPositions.add(position);
+      if (recentAcceptedPositions.length >
+          AppConstants.locationSmoothingWindowSize) {
+        recentAcceptedPositions.removeAt(0);
+      }
+
+      yield _buildSmoothedPosition(recentAcceptedPositions);
     }
   }
 
@@ -156,6 +163,45 @@ class GeolocatorDeviceLocationDataSource implements DeviceLocationDataSource {
     return speedMetersPerSecond >
             AppConstants.maxLocationJumpSpeedMetersPerSecond &&
         current.accuracy > AppConstants.targetCurrentFixAccuracyInMeters;
+  }
+
+  Position _buildSmoothedPosition(List<Position> samples) {
+    final latest = samples.last;
+    if (samples.length <= 1) {
+      return latest;
+    }
+
+    double weightedLatitude = 0;
+    double weightedLongitude = 0;
+    double weightedAccuracy = 0;
+    double totalWeight = 0;
+
+    for (var index = 0; index < samples.length; index++) {
+      final sample = samples[index];
+      final recencyWeight = (index + 1) / samples.length;
+      final accuracyWeight = 1 / sample.accuracy.clamp(3.0, 200.0);
+      final weight = recencyWeight * accuracyWeight;
+      weightedLatitude += sample.latitude * weight;
+      weightedLongitude += sample.longitude * weight;
+      weightedAccuracy += sample.accuracy * weight;
+      totalWeight += weight;
+    }
+
+    final smoothedAccuracy = weightedAccuracy / totalWeight;
+    return Position(
+      latitude: weightedLatitude / totalWeight,
+      longitude: weightedLongitude / totalWeight,
+      timestamp: latest.timestamp,
+      accuracy: smoothedAccuracy,
+      altitude: latest.altitude,
+      altitudeAccuracy: latest.altitudeAccuracy,
+      heading: latest.heading,
+      headingAccuracy: latest.headingAccuracy,
+      speed: latest.speed,
+      speedAccuracy: latest.speedAccuracy,
+      floor: latest.floor,
+      isMocked: latest.isMocked,
+    );
   }
 
   LocationSettings get _singlePositionLocationSettings {

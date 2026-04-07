@@ -23,12 +23,19 @@ class SharedPreferencesOfficeLocationLocalDataSource
     final longitude = _sharedPreferences.getDouble(
       AppConstants.officeLongitudeKey,
     );
+    final accuracy = _sharedPreferences.getDouble(
+      AppConstants.officeAccuracyKey,
+    );
 
     if (latitude == null || longitude == null) {
       return null;
     }
 
-    return LocationModel.fromStorage(latitude: latitude, longitude: longitude);
+    return LocationModel.fromStorage(
+      latitude: latitude,
+      longitude: longitude,
+      accuracyInMeters: accuracy,
+    );
   }
 
   @override
@@ -41,5 +48,13 @@ class SharedPreferencesOfficeLocationLocalDataSource
       AppConstants.officeLongitudeKey,
       location.longitude,
     );
+    if (location.accuracyInMeters != null) {
+      await _sharedPreferences.setDouble(
+        AppConstants.officeAccuracyKey,
+        location.accuracyInMeters!,
+      );
+    } else {
+      await _sharedPreferences.remove(AppConstants.officeAccuracyKey);
+    }
   }
 }

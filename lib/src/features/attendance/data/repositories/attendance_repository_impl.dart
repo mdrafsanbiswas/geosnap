@@ -44,7 +44,11 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   @override
   Future<void> saveOfficeLocation(GeoPoint location) {
     return _officeLocationLocalDataSource.saveOfficeLocation(
-      LocationModel(latitude: location.latitude, longitude: location.longitude),
+      LocationModel(
+        latitude: location.latitude,
+        longitude: location.longitude,
+        accuracyInMeters: location.accuracyInMeters,
+      ),
     );
   }
 

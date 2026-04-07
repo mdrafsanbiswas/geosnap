@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -238,9 +239,14 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     required GeoPoint currentLocation,
     required Emitter<AttendanceState> emit,
   }) {
-    final distanceInMeters = _calculateDistance(
+    final rawDistanceInMeters = _calculateDistance(
       origin: officeLocation,
       destination: currentLocation,
+    );
+    final distanceInMeters = _applyNearDistanceCompensation(
+      rawDistanceInMeters: rawDistanceInMeters,
+      officeLocation: officeLocation,
+      currentLocation: currentLocation,
     );
     final hasDistanceDeltaBelowThreshold =
         state.distanceInMeters != null &&
@@ -264,6 +270,30 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
         clearLocationErrorType: true,
       ),
     );
+  }
+
+  double _applyNearDistanceCompensation({
+    required double rawDistanceInMeters,
+    required GeoPoint officeLocation,
+    required GeoPoint currentLocation,
+  }) {
+    if (rawDistanceInMeters >
+        AppConstants.nearDistanceCompensationThresholdInMeters) {
+      return rawDistanceInMeters;
+    }
+
+    final officeAccuracy =
+        officeLocation.accuracyInMeters ??
+        AppConstants.fallbackLocationAccuracyInMeters;
+    final currentAccuracy =
+        currentLocation.accuracyInMeters ??
+        AppConstants.fallbackLocationAccuracyInMeters;
+    final compensationInMeters = math.min(
+      officeAccuracy + currentAccuracy,
+      AppConstants.maxNearDistanceCompensationInMeters,
+    );
+
+    return math.max(0, rawDistanceInMeters - compensationInMeters);
   }
 
   void _emitLocationError(
