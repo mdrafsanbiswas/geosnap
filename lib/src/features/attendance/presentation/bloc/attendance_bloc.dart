@@ -288,8 +288,11 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     final currentAccuracy =
         currentLocation.accuracyInMeters ??
         AppConstants.fallbackLocationAccuracyInMeters;
+    final normalizedOfficeAccuracy = officeAccuracy.clamp(2, 40);
+    final normalizedCurrentAccuracy = currentAccuracy.clamp(2, 40);
     final compensationInMeters = math.min(
-      officeAccuracy + currentAccuracy,
+      (normalizedOfficeAccuracy + normalizedCurrentAccuracy) *
+          AppConstants.nearDistanceCompensationFactor,
       AppConstants.maxNearDistanceCompensationInMeters,
     );
 
