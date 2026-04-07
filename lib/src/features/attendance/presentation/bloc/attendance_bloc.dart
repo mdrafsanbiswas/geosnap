@@ -5,11 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/location_exception.dart';
 import '../../domain/entities/geo_point.dart';
-import '../../domain/usecases/calculate_distance_use_case.dart';
-import '../../domain/usecases/get_current_location_use_case.dart';
-import '../../domain/usecases/get_saved_office_location_use_case.dart';
-import '../../domain/usecases/save_office_location_use_case.dart';
-import '../../domain/usecases/watch_current_location_use_case.dart';
+import '../../domain/usecases/calculate_distance.dart';
+import '../../domain/usecases/get_current_location.dart';
+import '../../domain/usecases/get_saved_office_location.dart';
+import '../../domain/usecases/save_office_location.dart';
+import '../../domain/usecases/watch_current_location.dart';
 import 'attendance_event.dart';
 import 'attendance_state.dart';
 

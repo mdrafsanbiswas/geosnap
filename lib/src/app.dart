@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'features/attendance/domain/repositories/attendance_repository.dart';
-import 'features/attendance/domain/usecases/calculate_distance_use_case.dart';
-import 'features/attendance/domain/usecases/get_current_location_use_case.dart';
-import 'features/attendance/domain/usecases/get_saved_office_location_use_case.dart';
-import 'features/attendance/domain/usecases/save_office_location_use_case.dart';
-import 'features/attendance/domain/usecases/watch_current_location_use_case.dart';
+import 'features/attendance/domain/usecases/calculate_distance.dart';
+import 'features/attendance/domain/usecases/get_current_location.dart';
+import 'features/attendance/domain/usecases/get_saved_office_location.dart';
+import 'features/attendance/domain/usecases/save_office_location.dart';
+import 'features/attendance/domain/usecases/watch_current_location.dart';
 import 'features/attendance/presentation/bloc/attendance_bloc.dart';
 import 'features/attendance/presentation/bloc/attendance_event.dart';
 import 'features/attendance/presentation/screens/attendance_screen.dart';
