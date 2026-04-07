@@ -2,8 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:geosnap/src/features/attendance/data/datasources/device_location_data_source.dart';
-import 'package:geosnap/src/features/attendance/data/datasources/office_location_local_data_source.dart';
+import 'package:geosnap/src/features/attendance/data/datasources/device_location.dart';
+import 'package:geosnap/src/features/attendance/data/datasources/office_location_local.dart';
 import 'package:geosnap/src/features/attendance/data/repositories/attendance_repository_impl.dart';
 
 import 'package:geosnap/src/app.dart';
