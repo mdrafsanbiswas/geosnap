@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:isolate';
+import 'dart:math' as math;
 
 import 'package:geolocator/geolocator.dart';
 
@@ -19,12 +22,15 @@ class GeolocatorDeviceLocationDataSource implements DeviceLocationDataSource {
     await _ensureLocationAccess();
 
     try {
-      return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
-          timeLimit: AppConstants.currentLocationTimeout,
-        ),
+      final initialPosition = await Geolocator.getCurrentPosition(
+        locationSettings: _singlePositionLocationSettings,
       );
+      if (_hasTargetAccuracy(initialPosition) &&
+          _isFreshPosition(initialPosition)) {
+        return initialPosition;
+      }
+
+      return _resolveStableCurrentPosition(initialPosition);
     } on TimeoutException {
       throw const LocationException(
         type: LocationErrorType.timeout,
@@ -42,11 +48,168 @@ class GeolocatorDeviceLocationDataSource implements DeviceLocationDataSource {
   Stream<Position> watchPosition() async* {
     await _ensureLocationAccess();
 
-    yield* Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.best,
+    Position? previousAcceptedPosition;
+    await for (final position in Geolocator.getPositionStream(
+      locationSettings: _streamLocationSettings,
+    )) {
+      if (!_isFreshPosition(position) || !_hasTrackableAccuracy(position)) {
+        continue;
+      }
+
+      if (_isOutlierJump(position, previousAcceptedPosition)) {
+        continue;
+      }
+
+      previousAcceptedPosition = position;
+      yield position;
+    }
+  }
+
+  Future<Position> _resolveStableCurrentPosition(
+    Position initialPosition,
+  ) async {
+    final samples = <Position>[
+      if (_isFreshPosition(initialPosition)) initialPosition,
+    ];
+    try {
+      final additionalSamples =
+          await Geolocator.getPositionStream(
+                locationSettings: _singlePositionLocationSettings,
+              )
+              .where(_isFreshPosition)
+              .take(
+                AppConstants.locationStabilizationSampleCount - samples.length,
+              )
+              .timeout(
+                AppConstants.locationStabilizationTimeout,
+                onTimeout: (sink) => sink.close(),
+              )
+              .toList();
+      samples.addAll(additionalSamples);
+    } catch (_) {
+      // Keep the current best sample when the stabilization window closes early.
+    }
+
+    if (samples.isEmpty) {
+      return initialPosition;
+    }
+
+    final stableSampleIndex = await _pickStableSampleIndex(samples);
+    return samples[stableSampleIndex];
+  }
+
+  Future<int> _pickStableSampleIndex(List<Position> samples) async {
+    if (samples.length <= 1) {
+      return 0;
+    }
+
+    final serializedSamples = samples
+        .map(
+          (sample) => [
+            sample.latitude,
+            sample.longitude,
+            sample.accuracy.clamp(1.0, 5000.0),
+          ],
+        )
+        .toList(growable: false);
+
+    return Isolate.run(() => _pickStablePositionIndex(serializedSamples));
+  }
+
+  bool _hasTargetAccuracy(Position position) {
+    return position.accuracy <= AppConstants.targetCurrentFixAccuracyInMeters;
+  }
+
+  bool _hasTrackableAccuracy(Position position) {
+    return position.accuracy <= AppConstants.maxTrackingAccuracyInMeters;
+  }
+
+  bool _isFreshPosition(Position position) {
+    return DateTime.now().difference(position.timestamp).abs() <=
+        AppConstants.staleLocationThreshold;
+  }
+
+  bool _isOutlierJump(Position current, Position? previous) {
+    if (previous == null) {
+      return false;
+    }
+
+    final distanceInMeters = Geolocator.distanceBetween(
+      previous.latitude,
+      previous.longitude,
+      current.latitude,
+      current.longitude,
+    );
+    if (distanceInMeters <= AppConstants.locationDistanceFilterInMeters) {
+      return false;
+    }
+
+    final currentTimestamp = current.timestamp;
+    final previousTimestamp = previous.timestamp;
+    final elapsedInSeconds = math.max(
+      1,
+      currentTimestamp.difference(previousTimestamp).inMilliseconds.abs() /
+          Duration.millisecondsPerSecond,
+    );
+    final speedMetersPerSecond = distanceInMeters / elapsedInSeconds;
+
+    return speedMetersPerSecond >
+            AppConstants.maxLocationJumpSpeedMetersPerSecond &&
+        current.accuracy > AppConstants.targetCurrentFixAccuracyInMeters;
+  }
+
+  LocationSettings get _singlePositionLocationSettings {
+    if (Platform.isAndroid) {
+      return AndroidSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0,
+        intervalDuration: AppConstants.locationUpdateInterval,
+        forceLocationManager: false,
+        timeLimit: AppConstants.currentLocationTimeout,
+      );
+    }
+
+    if (Platform.isIOS || Platform.isMacOS) {
+      return AppleSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        activityType: ActivityType.fitness,
+        distanceFilter: 0,
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: true,
+        timeLimit: AppConstants.currentLocationTimeout,
+      );
+    }
+
+    return const LocationSettings(
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 0,
+      timeLimit: AppConstants.currentLocationTimeout,
+    );
+  }
+
+  LocationSettings get _streamLocationSettings {
+    if (Platform.isAndroid) {
+      return AndroidSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: AppConstants.locationDistanceFilterInMeters,
-      ),
+        intervalDuration: AppConstants.locationUpdateInterval,
+        forceLocationManager: false,
+      );
+    }
+
+    if (Platform.isIOS || Platform.isMacOS) {
+      return AppleSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        activityType: ActivityType.fitness,
+        distanceFilter: AppConstants.locationDistanceFilterInMeters,
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: true,
+      );
+    }
+
+    return const LocationSettings(
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: AppConstants.locationDistanceFilterInMeters,
     );
   }
 
@@ -80,3 +243,66 @@ class GeolocatorDeviceLocationDataSource implements DeviceLocationDataSource {
     }
   }
 }
+
+int _pickStablePositionIndex(List<List<double>> samples) {
+  if (samples.length <= 1) {
+    return 0;
+  }
+
+  double weightedLatitude = 0;
+  double weightedLongitude = 0;
+  double totalWeight = 0;
+
+  for (final sample in samples) {
+    final accuracy = sample[2].abs().clamp(1.0, 5000.0);
+    final weight = 1 / accuracy;
+    weightedLatitude += sample[0] * weight;
+    weightedLongitude += sample[1] * weight;
+    totalWeight += weight;
+  }
+
+  final centroidLatitude = weightedLatitude / totalWeight;
+  final centroidLongitude = weightedLongitude / totalWeight;
+
+  var bestIndex = 0;
+  var bestScore = double.infinity;
+
+  for (var index = 0; index < samples.length; index++) {
+    final sample = samples[index];
+    final distanceToCentroid = _haversineDistanceInMeters(
+      latitude1: sample[0],
+      longitude1: sample[1],
+      latitude2: centroidLatitude,
+      longitude2: centroidLongitude,
+    );
+    final score = distanceToCentroid + (sample[2] * 0.7);
+    if (score < bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  }
+
+  return bestIndex;
+}
+
+double _haversineDistanceInMeters({
+  required double latitude1,
+  required double longitude1,
+  required double latitude2,
+  required double longitude2,
+}) {
+  const earthRadiusInMeters = 6371000.0;
+  final latitudeDelta = _toRadians(latitude2 - latitude1);
+  final longitudeDelta = _toRadians(longitude2 - longitude1);
+
+  final a =
+      math.pow(math.sin(latitudeDelta / 2), 2) +
+      math.cos(_toRadians(latitude1)) *
+          math.cos(_toRadians(latitude2)) *
+          math.pow(math.sin(longitudeDelta / 2), 2);
+  final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+
+  return earthRadiusInMeters * c;
+}
+
+double _toRadians(double value) => value * (math.pi / 180);

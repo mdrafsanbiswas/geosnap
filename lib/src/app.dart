@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'features/attendance/domain/repositories/attendance_repository.dart';
@@ -28,6 +29,16 @@ class GeoSnapApp extends StatelessWidget {
           surface: const Color(0xFFF4F6FB),
         ),
         scaffoldBackgroundColor: const Color(0xFFF4F6FB),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          ),
+        ),
       ),
       home: RepositoryProvider.value(
         value: attendanceRepository,

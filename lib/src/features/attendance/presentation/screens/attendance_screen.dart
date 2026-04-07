@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -31,6 +32,11 @@ class AttendanceScreen extends StatelessWidget {
       },
       child: Scaffold(
         appBar: AppBar(
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          ),
           elevation: 0,
           scrolledUnderElevation: 0,
           backgroundColor: Colors.transparent,
@@ -40,47 +46,102 @@ class AttendanceScreen extends StatelessWidget {
           ),
           title: const Text('Attendance'),
         ),
-        body: BlocBuilder<AttendanceBloc, AttendanceState>(
-          builder: (context, state) {
-            final bloc = context.read<AttendanceBloc>();
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              BlocSelector<
+                AttendanceBloc,
+                AttendanceState,
+                ({
+                  GeoPoint? officeLocation,
+                  GeoPoint? currentLocation,
+                  bool isLoading,
+                })
+              >(
+                selector: (state) => (
+                  officeLocation: state.officeLocation,
+                  currentLocation: state.officeLocation == null
+                      ? state.currentLocation
+                      : null,
+                  isLoading: state.status == AttendanceViewStatus.loading,
+                ),
+                builder: (context, officeCardState) {
+                  return _OfficeLocationCard(
+                    officeLocation: officeCardState.officeLocation,
+                    currentLocation: officeCardState.currentLocation,
+                    isLoading: officeCardState.isLoading,
+                    onSetOfficeLocation: () => context
+                        .read<AttendanceBloc>()
+                        .add(const OfficeLocationRequested()),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              BlocSelector<
+                AttendanceBloc,
+                AttendanceState,
+                ({
+                  GeoPoint? officeLocation,
+                  double? distanceInMeters,
+                  bool isInRange,
+                })
+              >(
+                selector: (state) => (
+                  officeLocation: state.officeLocation,
+                  distanceInMeters: state.distanceInMeters,
+                  isInRange: state.isInRange,
+                ),
+                builder: (context, distanceState) {
+                  return _DistanceCard(
+                    officeLocation: distanceState.officeLocation,
+                    distanceInMeters: distanceState.distanceInMeters,
+                    isInRange: distanceState.isInRange,
+                  );
+                },
+              ),
+              BlocSelector<AttendanceBloc, AttendanceState, bool>(
+                selector: (state) => state.locationErrorType != null,
+                builder: (context, hasLocationError) {
+                  if (!hasLocationError) {
+                    return const SizedBox.shrink();
+                  }
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _OfficeLocationCard(
-                    officeLocation: state.officeLocation,
-                    currentLocation: state.currentLocation,
-                    isLoading: state.status == AttendanceViewStatus.loading,
-                    onSetOfficeLocation: () =>
-                        bloc.add(const OfficeLocationRequested()),
-                  ),
-                  const SizedBox(height: 24),
-                  _DistanceCard(
-                    officeLocation: state.officeLocation,
-                    distanceInMeters: state.distanceInMeters,
-                    isInRange: state.isInRange,
-                  ),
-                  if (state.locationErrorType != null) ...[
-                    const SizedBox(height: 20),
-                    FilledButton.tonalIcon(
-                      onPressed: () =>
-                          bloc.add(const LocationTrackingRetried()),
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: FilledButton.tonalIcon(
+                      onPressed: () => context.read<AttendanceBloc>().add(
+                        const LocationTrackingRetried(),
+                      ),
                       icon: const Icon(Icons.refresh),
                       label: const Text('Retry location'),
                     ),
-                  ],
-                  const SizedBox(height: 24),
-                  _AttendanceActionCard(
-                    canMarkAttendance: state.canMarkAttendance,
-                    attendanceMarkedAt: state.attendanceMarkedAt,
-                    onMarkAttendance: () => bloc.add(const AttendanceMarked()),
-                  ),
-                ],
+                  );
+                },
               ),
-            );
-          },
+              const SizedBox(height: 24),
+              BlocSelector<
+                AttendanceBloc,
+                AttendanceState,
+                ({bool canMarkAttendance, DateTime? attendanceMarkedAt})
+              >(
+                selector: (state) => (
+                  canMarkAttendance: state.canMarkAttendance,
+                  attendanceMarkedAt: state.attendanceMarkedAt,
+                ),
+                builder: (context, actionState) {
+                  return _AttendanceActionCard(
+                    canMarkAttendance: actionState.canMarkAttendance,
+                    attendanceMarkedAt: actionState.attendanceMarkedAt,
+                    onMarkAttendance: () => context.read<AttendanceBloc>().add(
+                      const AttendanceMarked(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -276,8 +337,12 @@ class _DistanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final distanceValue = officeLocation == null ? null : (distanceInMeters ?? 0);
-    final distanceText = distanceValue == null ? '--' : '${distanceValue.round()}m';
+    final distanceValue = officeLocation == null
+        ? null
+        : (distanceInMeters ?? 0);
+    final distanceText = distanceValue == null
+        ? '--'
+        : '${distanceValue.round()}m';
 
     final statusLabel = officeLocation == null
         ? 'SET OFFICE LOCATION'
@@ -301,8 +366,8 @@ class _DistanceCard extends StatelessWidget {
             progress: distanceValue == null
                 ? 0
                 : (distanceValue / AppConstants.attendanceRadiusInMeters)
-                    .clamp(0, 1)
-                    .toDouble(),
+                      .clamp(0, 1)
+                      .toDouble(),
           ),
           const SizedBox(height: 14),
           Container(
@@ -360,7 +425,9 @@ class _DistanceMeter extends StatelessWidget {
           CustomPaint(
             size: const Size.square(134),
             painter: _CircularRangePainter(
-              color: inRange ? const Color(0xFF20A668) : const Color(0xFFED5A62),
+              color: inRange
+                  ? const Color(0xFF20A668)
+                  : const Color(0xFFED5A62),
               progress: progress,
             ),
           ),
@@ -377,9 +444,7 @@ class _DistanceMeter extends StatelessWidget {
               children: [
                 Text(
                   distanceText,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.headlineSmall?.copyWith(
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF2F3651),
                   ),
@@ -489,7 +554,8 @@ class _CircularRangePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final strokeWidth = 6.0;
-    final rect = Offset(strokeWidth / 2, strokeWidth / 2) &
+    final rect =
+        Offset(strokeWidth / 2, strokeWidth / 2) &
         Size(size.width - strokeWidth, size.height - strokeWidth);
     final basePaint = Paint()
       ..style = PaintingStyle.stroke

@@ -99,7 +99,7 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
         ),
       );
 
-      await _subscribeToLocationUpdates(currentLocation);
+      await _subscribeToLocationUpdates();
     } on LocationException catch (error) {
       _emitLocationError(error, emit);
     }
@@ -215,13 +215,13 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
         ),
       );
 
-      await _subscribeToLocationUpdates(officeLocation);
+      await _subscribeToLocationUpdates();
     } on LocationException catch (error) {
       _emitLocationError(error, emit);
     }
   }
 
-  Future<void> _subscribeToLocationUpdates(GeoPoint officeLocation) async {
+  Future<void> _subscribeToLocationUpdates() async {
     await _locationSubscription?.cancel();
     _locationSubscription = _watchCurrentLocation().listen(
       (currentLocation) {
@@ -242,6 +242,18 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
       origin: officeLocation,
       destination: currentLocation,
     );
+    final hasDistanceDeltaBelowThreshold =
+        state.distanceInMeters != null &&
+        (distanceInMeters - state.distanceInMeters!).abs() <
+            AppConstants.minDistanceDeltaForUiUpdateInMeters;
+    final previousInRange = state.isInRange;
+    final nextInRange =
+        distanceInMeters <= AppConstants.attendanceRadiusInMeters;
+    if (hasDistanceDeltaBelowThreshold &&
+        previousInRange == nextInRange &&
+        state.locationErrorType == null) {
+      return;
+    }
 
     emit(
       state.copyWith(
@@ -254,7 +266,10 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     );
   }
 
-  void _emitLocationError(LocationException error, Emitter<AttendanceState> emit) {
+  void _emitLocationError(
+    LocationException error,
+    Emitter<AttendanceState> emit,
+  ) {
     emit(
       state.copyWith(
         status: AttendanceViewStatus.ready,
