@@ -7,7 +7,8 @@ import 'features/attendance/domain/usecases/get_current_location_use_case.dart';
 import 'features/attendance/domain/usecases/get_saved_office_location_use_case.dart';
 import 'features/attendance/domain/usecases/save_office_location_use_case.dart';
 import 'features/attendance/domain/usecases/watch_current_location_use_case.dart';
-import 'features/attendance/presentation/cubit/attendance_cubit.dart';
+import 'features/attendance/presentation/bloc/attendance_bloc.dart';
+import 'features/attendance/presentation/bloc/attendance_event.dart';
 import 'features/attendance/presentation/screens/attendance_screen.dart';
 
 class GeoSnapApp extends StatelessWidget {
@@ -31,7 +32,7 @@ class GeoSnapApp extends StatelessWidget {
       home: RepositoryProvider.value(
         value: attendanceRepository,
         child: BlocProvider(
-          create: (context) => AttendanceCubit(
+          create: (context) => AttendanceBloc(
             getSavedOfficeLocation: GetSavedOfficeLocationUseCase(
               context.read<AttendanceRepository>(),
             ),
@@ -47,7 +48,7 @@ class GeoSnapApp extends StatelessWidget {
             calculateDistance: CalculateDistanceUseCase(
               context.read<AttendanceRepository>(),
             ),
-          )..initialize(),
+          )..add(const AttendanceInitialized()),
           child: const AttendanceScreen(),
         ),
       ),

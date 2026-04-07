@@ -10,10 +10,11 @@ import '../../domain/usecases/get_current_location_use_case.dart';
 import '../../domain/usecases/get_saved_office_location_use_case.dart';
 import '../../domain/usecases/save_office_location_use_case.dart';
 import '../../domain/usecases/watch_current_location_use_case.dart';
+import 'attendance_event.dart';
 import 'attendance_state.dart';
 
-class AttendanceCubit extends Cubit<AttendanceState> {
-  AttendanceCubit({
+class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
+  AttendanceBloc({
     required GetSavedOfficeLocationUseCase getSavedOfficeLocation,
     required SaveOfficeLocationUseCase saveOfficeLocation,
     required GetCurrentLocationUseCase getCurrentLocation,
@@ -24,7 +25,15 @@ class AttendanceCubit extends Cubit<AttendanceState> {
        _getCurrentLocation = getCurrentLocation,
        _watchCurrentLocation = watchCurrentLocation,
        _calculateDistance = calculateDistance,
-       super(const AttendanceState());
+       super(const AttendanceState()) {
+    on<AttendanceInitialized>(_onInitialized);
+    on<OfficeLocationRequested>(_onOfficeLocationRequested);
+    on<LocationTrackingRetried>(_onLocationTrackingRetried);
+    on<AttendanceMarked>(_onAttendanceMarked);
+    on<MessageCleared>(_onMessageCleared);
+    on<CurrentLocationUpdated>(_onCurrentLocationUpdated);
+    on<LocationTrackingFailed>(_onLocationTrackingFailed);
+  }
 
   final GetSavedOfficeLocationUseCase _getSavedOfficeLocation;
   final SaveOfficeLocationUseCase _saveOfficeLocation;
@@ -34,7 +43,10 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
   StreamSubscription<GeoPoint>? _locationSubscription;
 
-  Future<void> initialize() async {
+  Future<void> _onInitialized(
+    AttendanceInitialized event,
+    Emitter<AttendanceState> emit,
+  ) async {
     emit(
       state.copyWith(
         status: AttendanceViewStatus.loading,
@@ -54,11 +66,14 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     );
 
     if (savedOfficeLocation != null) {
-      await _refreshLocationTracking(savedOfficeLocation);
+      await _refreshLocationTracking(savedOfficeLocation, emit);
     }
   }
 
-  Future<void> setOfficeLocation() async {
+  Future<void> _onOfficeLocationRequested(
+    OfficeLocationRequested event,
+    Emitter<AttendanceState> emit,
+  ) async {
     emit(
       state.copyWith(
         status: AttendanceViewStatus.loading,
@@ -86,11 +101,14 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
       await _subscribeToLocationUpdates(currentLocation);
     } on LocationException catch (error) {
-      _emitLocationError(error);
+      _emitLocationError(error, emit);
     }
   }
 
-  Future<void> retryLocationTracking() async {
+  Future<void> _onLocationTrackingRetried(
+    LocationTrackingRetried event,
+    Emitter<AttendanceState> emit,
+  ) async {
     final officeLocation = state.officeLocation;
     if (officeLocation == null) {
       return;
@@ -104,10 +122,13 @@ class AttendanceCubit extends Cubit<AttendanceState> {
       ),
     );
 
-    await _refreshLocationTracking(officeLocation);
+    await _refreshLocationTracking(officeLocation, emit);
   }
 
-  Future<void> markAttendance() async {
+  void _onAttendanceMarked(
+    AttendanceMarked event,
+    Emitter<AttendanceState> emit,
+  ) {
     if (!state.canMarkAttendance) {
       emit(
         state.copyWith(
@@ -128,7 +149,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     );
   }
 
-  void clearMessage() {
+  void _onMessageCleared(MessageCleared event, Emitter<AttendanceState> emit) {
     if (state.message == null) {
       return;
     }
@@ -141,12 +162,50 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     );
   }
 
-  Future<void> _refreshLocationTracking(GeoPoint officeLocation) async {
+  void _onCurrentLocationUpdated(
+    CurrentLocationUpdated event,
+    Emitter<AttendanceState> emit,
+  ) {
+    final officeLocation = state.officeLocation;
+    if (officeLocation == null) {
+      return;
+    }
+
+    _updateDistance(
+      officeLocation: officeLocation,
+      currentLocation: event.currentLocation,
+      emit: emit,
+    );
+  }
+
+  void _onLocationTrackingFailed(
+    LocationTrackingFailed event,
+    Emitter<AttendanceState> emit,
+  ) {
+    if (event.error is LocationException) {
+      _emitLocationError(event.error as LocationException, emit);
+      return;
+    }
+
+    _emitLocationError(
+      const LocationException(
+        type: LocationErrorType.unavailable,
+        message: 'Unable to keep tracking your location right now.',
+      ),
+      emit,
+    );
+  }
+
+  Future<void> _refreshLocationTracking(
+    GeoPoint officeLocation,
+    Emitter<AttendanceState> emit,
+  ) async {
     try {
       final currentLocation = await _getCurrentLocation();
       _updateDistance(
         officeLocation: officeLocation,
         currentLocation: currentLocation,
+        emit: emit,
       );
 
       emit(
@@ -158,7 +217,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
       await _subscribeToLocationUpdates(officeLocation);
     } on LocationException catch (error) {
-      _emitLocationError(error);
+      _emitLocationError(error, emit);
     }
   }
 
@@ -166,23 +225,10 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     await _locationSubscription?.cancel();
     _locationSubscription = _watchCurrentLocation().listen(
       (currentLocation) {
-        _updateDistance(
-          officeLocation: officeLocation,
-          currentLocation: currentLocation,
-        );
+        add(CurrentLocationUpdated(currentLocation));
       },
       onError: (Object error, StackTrace stackTrace) {
-        if (error is LocationException) {
-          _emitLocationError(error);
-          return;
-        }
-
-        _emitLocationError(
-          const LocationException(
-            type: LocationErrorType.unavailable,
-            message: 'Unable to keep tracking your location right now.',
-          ),
-        );
+        add(LocationTrackingFailed(error));
       },
     );
   }
@@ -190,6 +236,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   void _updateDistance({
     required GeoPoint officeLocation,
     required GeoPoint currentLocation,
+    required Emitter<AttendanceState> emit,
   }) {
     final distanceInMeters = _calculateDistance(
       origin: officeLocation,
@@ -207,7 +254,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
     );
   }
 
-  void _emitLocationError(LocationException error) {
+  void _emitLocationError(LocationException error, Emitter<AttendanceState> emit) {
     emit(
       state.copyWith(
         status: AttendanceViewStatus.ready,
