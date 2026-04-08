@@ -67,7 +67,7 @@ class UploadQueueRepositoryImpl implements UploadQueueRepository {
     if (!hasNetwork) {
       items = _markWaitingForNetwork(items);
       await _persist(items);
-      onItemsUpdated?.call(items);
+      _notifyItemsUpdated(onItemsUpdated, items);
       return items;
     }
 
@@ -81,7 +81,7 @@ class UploadQueueRepositoryImpl implements UploadQueueRepository {
       if (!stillConnected) {
         items = _markWaitingForNetwork(items);
         await _persist(items);
-        onItemsUpdated?.call(items);
+        _notifyItemsUpdated(onItemsUpdated, items);
         return items;
       }
 
@@ -91,8 +91,7 @@ class UploadQueueRepositoryImpl implements UploadQueueRepository {
         updatedAt: DateTime.now(),
         clearErrorMessage: true,
       );
-      await _persist(items);
-      onItemsUpdated?.call(items);
+      _notifyItemsUpdated(onItemsUpdated, items);
 
       try {
         await _uploadRemoteDataSource.uploadFile(
@@ -104,8 +103,7 @@ class UploadQueueRepositoryImpl implements UploadQueueRepository {
               updatedAt: DateTime.now(),
               clearErrorMessage: true,
             );
-            await _persist(items);
-            onItemsUpdated?.call(items);
+            _notifyItemsUpdated(onItemsUpdated, items);
           },
         );
 
@@ -140,7 +138,7 @@ class UploadQueueRepositoryImpl implements UploadQueueRepository {
       }
 
       await _persist(items);
-      onItemsUpdated?.call(items);
+      _notifyItemsUpdated(onItemsUpdated, items);
     }
 
     return items;
@@ -174,5 +172,15 @@ class UploadQueueRepositoryImpl implements UploadQueueRepository {
         .map(UploadItemModel.fromEntity)
         .toList(growable: false);
     return _uploadQueueLocalDataSource.saveUploadItems(models);
+  }
+
+  void _notifyItemsUpdated(
+    UploadItemsListener? listener,
+    List<UploadItem> items,
+  ) {
+    if (listener == null) {
+      return;
+    }
+    listener(List<UploadItem>.unmodifiable(items));
   }
 }

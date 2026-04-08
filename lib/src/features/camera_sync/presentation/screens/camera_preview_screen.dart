@@ -10,6 +10,7 @@ import '../bloc/camera/camera_state.dart';
 import '../bloc/upload_queue/upload_queue_bloc.dart';
 import '../bloc/upload_queue/upload_queue_event.dart';
 import '../bloc/upload_queue/upload_queue_state.dart';
+import '../../domain/entities/upload_status.dart';
 import 'batch_preview_screen.dart';
 import 'upload_manager_screen.dart';
 
@@ -271,25 +272,140 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      top: 8,
-      left: 8,
-      right: 8,
-      child: Row(
-        children: [
-          IconButton.filledTonal(
-            onPressed: () => Navigator.maybePop(context),
-            icon: const Icon(Icons.close_rounded),
+    return BlocSelector<UploadQueueBloc, UploadQueueState, _QueueSummary>(
+      selector: (state) {
+        final queuedCount = state.items
+            .where((item) => item.status != UploadStatus.uploaded)
+            .length;
+        return _QueueSummary(
+          queuedCount: queuedCount,
+          uploadingCount: state.uploadingCount,
+          isOnline: state.isOnline,
+        );
+      },
+      builder: (context, summary) {
+        final showQueueBanner = summary.queuedCount > 0;
+        final queueMessage = !summary.isOnline
+            ? 'Offline: ${summary.queuedCount} upload${summary.queuedCount == 1 ? '' : 's'} queued'
+            : summary.uploadingCount > 0
+            ? 'Uploading ${summary.uploadingCount} of ${summary.queuedCount} queued item${summary.queuedCount == 1 ? '' : 's'}'
+            : '${summary.queuedCount} upload${summary.queuedCount == 1 ? '' : 's'} pending in queue';
+
+        return Positioned(
+          top: 8,
+          left: 8,
+          right: 8,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  IconButton.filledTonal(
+                    onPressed: () => Navigator.maybePop(context),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                  const Spacer(),
+                  IconButton.filledTonal(
+                    onPressed: onOpenUploadManager,
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.file_upload_outlined),
+                        if (summary.queuedCount > 0)
+                          Positioned(
+                            right: -10,
+                            top: -8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2B79FF),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                '${summary.queuedCount}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (showQueueBanner) ...[
+                const SizedBox(height: 8),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          summary.isOnline
+                              ? Icons.cloud_upload_rounded
+                              : Icons.cloud_off_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            queueMessage,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
-          const Spacer(),
-          IconButton.filledTonal(
-            onPressed: onOpenUploadManager,
-            icon: const Icon(Icons.file_upload_outlined),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
+}
+
+class _QueueSummary {
+  const _QueueSummary({
+    required this.queuedCount,
+    required this.uploadingCount,
+    required this.isOnline,
+  });
+
+  final int queuedCount;
+  final int uploadingCount;
+  final bool isOnline;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _QueueSummary &&
+        other.queuedCount == queuedCount &&
+        other.uploadingCount == uploadingCount &&
+        other.isOnline == isOnline;
+  }
+
+  @override
+  int get hashCode => Object.hash(queuedCount, uploadingCount, isOnline);
 }
 
 class _ZoomRail extends StatelessWidget {
@@ -379,6 +495,7 @@ class _BottomControls extends StatelessWidget {
               onTap: hasBatch ? onOpenBatchPreview : null,
               child: _GalleryBubble(
                 photoPath: hasBatch ? state.capturedPhotoPaths.last : null,
+                photoCount: state.capturedPhotoPaths.length,
               ),
             ),
             const Spacer(),
@@ -433,30 +550,59 @@ class _BottomControls extends StatelessWidget {
 }
 
 class _GalleryBubble extends StatelessWidget {
-  const _GalleryBubble({required this.photoPath});
+  const _GalleryBubble({required this.photoPath, required this.photoCount});
 
   final String? photoPath;
+  final int photoCount;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 54,
-      height: 54,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.white.withValues(alpha: 0.15),
-      ),
-      child: photoPath == null
-          ? const Icon(Icons.photo_library_outlined, color: Colors.white54)
-          : ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.file(
-                File(photoPath!),
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) =>
-                    const Icon(Icons.broken_image, color: Colors.white54),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 54,
+          height: 54,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.white.withValues(alpha: 0.15),
+          ),
+          child: photoPath == null
+              ? const Icon(Icons.photo_library_outlined, color: Colors.white54)
+              : ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    File(photoPath!),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        const Icon(Icons.broken_image, color: Colors.white54),
+                  ),
+                ),
+        ),
+        if (photoCount > 0)
+          Positioned(
+            right: -6,
+            top: -6,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2B79FF),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.black, width: 1.2),
+              ),
+              child: Text(
+                '$photoCount',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
+          ),
+      ],
     );
   }
 }

@@ -9,6 +9,7 @@ import '../../domain/entities/upload_status.dart';
 import '../bloc/upload_queue/upload_queue_bloc.dart';
 import '../bloc/upload_queue/upload_queue_event.dart';
 import '../bloc/upload_queue/upload_queue_state.dart';
+import 'image_preview_screen.dart';
 
 class UploadManagerScreen extends StatelessWidget {
   const UploadManagerScreen({super.key});
@@ -39,6 +40,9 @@ class UploadManagerScreen extends StatelessWidget {
             builder: (context, state) {
               final sortedItems = [...state.items]
                 ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+              final previewPaths = sortedItems
+                  .map((item) => item.filePath)
+                  .toList(growable: false);
 
               return Column(
                 children: [
@@ -85,7 +89,18 @@ class UploadManagerScreen extends StatelessWidget {
                             itemCount: sortedItems.length,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             itemBuilder: (context, index) {
-                              return _UploadItemCard(item: sortedItems[index]);
+                              return _UploadItemCard(
+                                item: sortedItems[index],
+                                onPreview: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => ImagePreviewScreen(
+                                      filePaths: previewPaths,
+                                      initialIndex: index,
+                                      title: 'Queued Upload Preview',
+                                    ),
+                                  ),
+                                ),
+                              );
                             },
                           ),
                   ),
@@ -184,67 +199,72 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _UploadItemCard extends StatelessWidget {
-  const _UploadItemCard({required this.item});
+  const _UploadItemCard({required this.item, required this.onPreview});
 
   final UploadItem item;
+  final VoidCallback onPreview;
 
   @override
   Widget build(BuildContext context) {
     final statusColor = _statusColor(item.status);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: const Color(0xFF111C39),
-        border: Border.all(color: statusColor.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        children: [
-          _Thumb(filePath: item.filePath),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  p.basename(item.filePath),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
+    return GestureDetector(
+      onTap: onPreview,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: const Color(0xFF111C39),
+          border: Border.all(color: statusColor.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            _Thumb(filePath: item.filePath),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p.basename(item.filePath),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    _StatusChip(label: item.status.label, color: statusColor),
-                    const SizedBox(width: 8),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      _StatusChip(label: item.status.label, color: statusColor),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${(item.progress * 100).toStringAsFixed(0)}%',
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (item.errorMessage != null) ...[
+                    const SizedBox(height: 4),
                     Text(
-                      '${(item.progress * 100).toStringAsFixed(0)}%',
+                      item.errorMessage!,
                       style: const TextStyle(
-                        color: Colors.white60,
+                        color: Colors.redAccent,
                         fontSize: 12,
                       ),
                     ),
                   ],
-                ),
-                if (item.errorMessage != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    item.errorMessage!,
-                    style: const TextStyle(
-                      color: Colors.redAccent,
-                      fontSize: 12,
-                    ),
-                  ),
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+            const Icon(Icons.open_in_full_rounded, color: Colors.white54),
+          ],
+        ),
       ),
     );
   }

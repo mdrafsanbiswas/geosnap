@@ -32,8 +32,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('GeoSnap'), findsOneWidget);
-    expect(find.text('Task 1'), findsOneWidget);
-    expect(find.text('Task 2'), findsOneWidget);
+    expect(find.text('Attendance'), findsOneWidget);
+    expect(find.text('Camera & Sync'), findsOneWidget);
   });
 }
 

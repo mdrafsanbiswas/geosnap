@@ -42,7 +42,7 @@ class MockUploadRemoteDataSource implements UploadRemoteDataSource {
     final shouldFail = _random.nextDouble() < 0.28;
     if (shouldFail) {
       throw const MockUploadException(
-        'Mock server rejected the upload. Will retry later.',
+        'Server rejected the upload. Will retry later.',
       );
     }
   }

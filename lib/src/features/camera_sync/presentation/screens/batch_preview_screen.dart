@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/camera/camera_bloc.dart';
 import '../bloc/camera/camera_event.dart';
 import '../bloc/camera/camera_state.dart';
+import 'image_preview_screen.dart';
 
 class BatchPreviewScreen extends StatelessWidget {
   const BatchPreviewScreen({super.key});
@@ -33,35 +34,49 @@ class BatchPreviewScreen extends StatelessWidget {
             ),
             itemBuilder: (context, index) {
               final filePath = photos[index];
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      File(filePath),
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const ColoredBox(
-                        color: Color(0xFF1B2238),
-                        child: Icon(Icons.broken_image, color: Colors.white70),
-                      ),
+              return GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ImagePreviewScreen(
+                      filePaths: photos,
+                      initialIndex: index,
+                      title: 'Batch Preview',
                     ),
                   ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: IconButton.filledTonal(
-                      onPressed: () => context.read<CameraBloc>().add(
-                        CameraPhotoRemoved(filePath),
-                      ),
-                      icon: const Icon(Icons.close_rounded, size: 16),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.black.withValues(alpha: 0.6),
-                        foregroundColor: Colors.white,
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        File(filePath),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const ColoredBox(
+                          color: Color(0xFF1B2238),
+                          child: Icon(
+                            Icons.broken_image,
+                            color: Colors.white70,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: IconButton.filledTonal(
+                        onPressed: () => context.read<CameraBloc>().add(
+                          CameraPhotoRemoved(filePath),
+                        ),
+                        icon: const Icon(Icons.close_rounded, size: 16),
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.black.withValues(alpha: 0.6),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               );
             },
           );

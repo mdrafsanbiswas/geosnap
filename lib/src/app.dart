@@ -62,10 +62,31 @@ class GeoSnapApp extends StatelessWidget {
           RepositoryProvider.value(value: attendanceRepository),
           RepositoryProvider.value(value: uploadQueueRepository),
         ],
-        child: Builder(
-          builder: (context) => StarterScreen(
-            onOpenAttendance: () => _openAttendance(context),
-            onOpenCameraSync: () => _openCameraSync(context),
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (_) => UploadQueueBloc(
+                getUploadItems: GetUploadItemsUseCase(uploadQueueRepository),
+                enqueueUploadBatch: EnqueueUploadBatchUseCase(
+                  uploadQueueRepository,
+                ),
+                processPendingUploads: ProcessPendingUploadsUseCase(
+                  uploadQueueRepository,
+                ),
+                hasNetworkAccess: HasNetworkAccessUseCase(
+                  uploadQueueRepository,
+                ),
+                watchNetworkAccess: WatchNetworkAccessUseCase(
+                  uploadQueueRepository,
+                ),
+              )..add(const UploadQueueInitialized()),
+            ),
+          ],
+          child: Builder(
+            builder: (context) => StarterScreen(
+              onOpenAttendance: () => _openAttendance(context),
+              onOpenCameraSync: () => _openCameraSync(context),
+            ),
           ),
         ),
       ),
@@ -80,18 +101,12 @@ class GeoSnapApp extends StatelessWidget {
             getSavedOfficeLocation: GetSavedOfficeLocationUseCase(
               attendanceRepository,
             ),
-            saveOfficeLocation: SaveOfficeLocationUseCase(
-              attendanceRepository,
-            ),
-            getCurrentLocation: GetCurrentLocationUseCase(
-              attendanceRepository,
-            ),
+            saveOfficeLocation: SaveOfficeLocationUseCase(attendanceRepository),
+            getCurrentLocation: GetCurrentLocationUseCase(attendanceRepository),
             watchCurrentLocation: WatchCurrentLocationUseCase(
               attendanceRepository,
             ),
-            calculateDistance: CalculateDistanceUseCase(
-              attendanceRepository,
-            ),
+            calculateDistance: CalculateDistanceUseCase(attendanceRepository),
           )..add(const AttendanceInitialized()),
           child: const AttendanceScreen(),
         ),
@@ -107,25 +122,7 @@ class GeoSnapApp extends StatelessWidget {
             BlocProvider(
               create: (_) => CameraBloc()..add(const CameraInitialized()),
             ),
-            BlocProvider(
-              create: (_) => UploadQueueBloc(
-                getUploadItems: GetUploadItemsUseCase(
-                  uploadQueueRepository,
-                ),
-                enqueueUploadBatch: EnqueueUploadBatchUseCase(
-                  uploadQueueRepository,
-                ),
-                processPendingUploads: ProcessPendingUploadsUseCase(
-                  uploadQueueRepository,
-                ),
-                hasNetworkAccess: HasNetworkAccessUseCase(
-                  uploadQueueRepository,
-                ),
-                watchNetworkAccess: WatchNetworkAccessUseCase(
-                  uploadQueueRepository,
-                ),
-              )..add(const UploadQueueInitialized()),
-            ),
+            BlocProvider.value(value: context.read<UploadQueueBloc>()),
           ],
           child: const CameraPreviewScreen(),
         ),

@@ -47,7 +47,9 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
     UploadQueueInitialized event,
     Emitter<UploadQueueState> emit,
   ) async {
-    emit(state.copyWith(status: UploadQueueViewStatus.loading, clearMessage: true));
+    emit(
+      state.copyWith(status: UploadQueueViewStatus.loading, clearMessage: true),
+    );
 
     final items = await _getUploadItems();
     final isOnline = await _hasNetworkAccess();
@@ -55,7 +57,7 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
     emit(
       state.copyWith(
         status: UploadQueueViewStatus.ready,
-        items: items,
+        items: List<UploadItem>.unmodifiable(items),
         isOnline: isOnline,
       ),
     );
@@ -77,7 +79,8 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
     if (event.filePaths.isEmpty) {
       emit(
         state.copyWith(
-          message: 'Capture at least one photo before creating an upload batch.',
+          message:
+              'Capture at least one photo before creating an upload batch.',
         ),
       );
       return;
@@ -87,7 +90,7 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
     emit(
       state.copyWith(
         status: UploadQueueViewStatus.ready,
-        items: items,
+        items: List<UploadItem>.unmodifiable(items),
         message: 'Added ${event.filePaths.length} photo(s) to upload queue.',
       ),
     );
@@ -137,7 +140,7 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
       emit(
         state.copyWith(
           status: UploadQueueViewStatus.ready,
-          items: latestItems,
+          items: List<UploadItem>.unmodifiable(latestItems),
           isOnline: isOnline,
           lastSyncedAt: DateTime.now(),
           message: event.silent
@@ -158,15 +161,15 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
     emit(
       state.copyWith(
         status: UploadQueueViewStatus.uploading,
-        items: event.items,
+        items: List<UploadItem>.unmodifiable(event.items),
       ),
     );
   }
 
-  void _onNetworkChanged(
+  Future<void> _onNetworkChanged(
     UploadQueueNetworkChanged event,
     Emitter<UploadQueueState> emit,
-  ) {
+  ) async {
     if (event.isOnline == state.isOnline) {
       return;
     }
@@ -180,7 +183,14 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
       ),
     );
 
-    if (event.isOnline && _hasRetryableItems(state.items)) {
+    if (!event.isOnline) {
+      return;
+    }
+
+    final latestItems = await _getUploadItems();
+    emit(state.copyWith(items: List<UploadItem>.unmodifiable(latestItems)));
+
+    if (_hasRetryableItems(latestItems)) {
       add(const UploadQueueProcessRequested(silent: true, fromAutoRetry: true));
     }
   }
@@ -195,7 +205,7 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
     emit(
       state.copyWith(
         status: UploadQueueViewStatus.ready,
-        items: items,
+        items: List<UploadItem>.unmodifiable(items),
         isOnline: isOnline,
         clearMessage: true,
       ),

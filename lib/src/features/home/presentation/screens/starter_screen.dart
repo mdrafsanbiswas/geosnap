@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../camera_sync/domain/entities/upload_status.dart';
+import '../../../camera_sync/presentation/bloc/upload_queue/upload_queue_bloc.dart';
+import '../../../camera_sync/presentation/bloc/upload_queue/upload_queue_state.dart';
 
 class StarterScreen extends StatelessWidget {
   const StarterScreen({
@@ -36,15 +41,15 @@ class StarterScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Select a task to continue',
+                  'Select a feature to continue',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: const Color(0xFF546386),
                   ),
                 ),
                 const SizedBox(height: 24),
                 _TaskCard(
-                  title: 'Task 1',
-                  subtitle: 'Geo-Fenced Attendance',
+                  title: 'Attendance',
+                  subtitle: 'Geo-Fenced Check-in',
                   description:
                       'Set office location, track distance, and mark attendance inside 50m.',
                   icon: Icons.location_pin,
@@ -53,13 +58,14 @@ class StarterScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 _TaskCard(
-                  title: 'Task 2',
-                  subtitle: 'Advanced Camera & Sync',
+                  title: 'Camera & Sync',
+                  subtitle: 'Batch Capture Uploads',
                   description:
                       'Capture image batches, upload with progress, retain pending queue, and retry automatically.',
                   icon: Icons.camera_alt_rounded,
                   color: const Color(0xFF0B172B),
                   onTap: onOpenCameraSync,
+                  notificationChip: const _UploadQueueNotificationChip(),
                 ),
               ],
             ),
@@ -78,6 +84,7 @@ class _TaskCard extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onTap,
+    this.notificationChip,
   });
 
   final String title;
@@ -86,6 +93,7 @@ class _TaskCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
+  final Widget? notificationChip;
 
   @override
   Widget build(BuildContext context) {
@@ -120,13 +128,20 @@ class _TaskCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.92),
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.1,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          title,
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.92),
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.1,
+                              ),
+                        ),
+                        if (notificationChip != null)
+                          Flexible(child: notificationChip!),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -152,6 +167,51 @@ class _TaskCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _UploadQueueNotificationChip extends StatelessWidget {
+  const _UploadQueueNotificationChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocSelector<UploadQueueBloc, UploadQueueState, String?>(
+      selector: (state) {
+        final queuedCount = state.items
+            .where((item) => item.status != UploadStatus.uploaded)
+            .length;
+        if (queuedCount == 0) {
+          return null;
+        }
+        if (!state.isOnline) {
+          return 'Offline: $queuedCount upload${queuedCount == 1 ? '' : 's'} queued';
+        }
+        return '$queuedCount pending upload${queuedCount == 1 ? '' : 's'}';
+      },
+      builder: (context, notification) {
+        if (notification == null) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(left: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            notification,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+      },
     );
   }
 }
