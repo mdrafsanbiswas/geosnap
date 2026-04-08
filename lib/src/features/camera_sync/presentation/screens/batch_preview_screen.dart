@@ -6,6 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/camera/camera_bloc.dart';
 import '../bloc/camera/camera_event.dart';
 import '../bloc/camera/camera_state.dart';
+import '../constants/camera_sync_ui_color.dart';
+import '../constants/camera_sync_ui_text.dart';
 import 'image_preview_screen.dart';
 
 class BatchPreviewScreen extends StatelessWidget {
@@ -23,15 +25,13 @@ class BatchPreviewScreen extends StatelessWidget {
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints.tightFor(width: 44, height: 44),
         ),
-        title: const Text('Current Batch'),
+        title: const Text(CameraSyncUiText.currentBatchTitle),
       ),
       body: BlocBuilder<CameraBloc, CameraState>(
         builder: (context, state) {
           final photos = state.capturedPhotoPaths;
           if (photos.isEmpty) {
-            return const Center(
-              child: Text('No captured photos in this batch yet.'),
-            );
+            return const Center(child: Text(CameraSyncUiText.noCapturedPhotos));
           }
 
           return GridView.builder(
@@ -50,7 +50,7 @@ class BatchPreviewScreen extends StatelessWidget {
                     builder: (_) => ImagePreviewScreen(
                       filePaths: photos,
                       initialIndex: index,
-                      title: 'Batch Preview',
+                      title: CameraSyncUiText.batchPreviewTitle,
                     ),
                   ),
                 ),
@@ -63,7 +63,7 @@ class BatchPreviewScreen extends StatelessWidget {
                         File(filePath),
                         fit: BoxFit.cover,
                         errorBuilder: (_, _, _) => const ColoredBox(
-                          color: Color(0xFF1B2238),
+                          color: CameraSyncUiColor.batchImageFallbackBg,
                           child: Icon(
                             Icons.broken_image,
                             color: Colors.white70,

@@ -3,11 +3,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../constants/camera_sync_ui_color.dart';
+import '../constants/camera_sync_ui_text.dart';
+
 class ImagePreviewScreen extends StatefulWidget {
   const ImagePreviewScreen({
     required this.filePaths,
     this.initialIndex = 0,
-    this.title = 'Image Preview',
+    this.title = CameraSyncUiText.imagePreviewTitle,
     super.key,
   });
 
@@ -133,7 +136,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
           ),
           title: Text(widget.title),
         ),
-        body: const Center(child: Text('No image available.')),
+        body: const Center(child: Text(CameraSyncUiText.noImageAvailable)),
       );
     }
 
@@ -141,9 +144,9 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
         .filePaths[_safeIndex(widget.initialIndex, widget.filePaths.length)];
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: CameraSyncUiColor.cameraSurface,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: CameraSyncUiColor.cameraSurface,
         foregroundColor: Colors.white,
         leadingWidth: 56,
         leading: IconButton(
@@ -182,7 +185,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen>
                           ),
                           SizedBox(height: 8),
                           Text(
-                            'Unable to load this image.',
+                            CameraSyncUiText.unableToLoadImage,
                             style: TextStyle(color: Colors.white60),
                           ),
                         ],
@@ -240,7 +243,7 @@ class _TapMarker extends StatelessWidget {
         height: 48,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFFFE27A), width: 2.2),
+          border: Border.all(color: CameraSyncUiColor.tapMarker, width: 2.2),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.35),
@@ -249,7 +252,11 @@ class _TapMarker extends StatelessWidget {
           ],
         ),
         child: const Center(
-          child: Icon(Icons.add_rounded, size: 16, color: Color(0xFFFFE27A)),
+          child: Icon(
+            Icons.add_rounded,
+            size: 16,
+            color: CameraSyncUiColor.tapMarker,
+          ),
         ),
       ),
     );
