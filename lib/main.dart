@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive/hive.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'src/app.dart';
@@ -23,15 +25,17 @@ Future<void> main() async {
   );
 
   final sharedPreferences = await SharedPreferences.getInstance();
+  final appDirectory = await getApplicationDocumentsDirectory();
+  Hive.init(appDirectory.path);
+  final uploadQueueBox = await openUploadQueueHiveBox();
+
   final attendanceRepository = AttendanceRepositoryImpl(
     deviceLocationDataSource: GeolocatorDeviceLocationDataSource(),
     officeLocationLocalDataSource:
         SharedPreferencesOfficeLocationLocalDataSource(sharedPreferences),
   );
   final uploadQueueRepository = UploadQueueRepositoryImpl(
-    uploadQueueLocalDataSource: SharedPreferencesUploadQueueLocalDataSource(
-      sharedPreferences,
-    ),
+    uploadQueueLocalDataSource: HiveUploadQueueLocalDataSource(uploadQueueBox),
     uploadRemoteDataSource: MockUploadRemoteDataSource(),
     networkCheckerDataSource: InternetLookupNetworkCheckerDataSource(),
   );

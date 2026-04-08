@@ -20,6 +20,7 @@ class AppConstants {
   static const String officeLatitudeKey = 'office_latitude';
   static const String officeLongitudeKey = 'office_longitude';
   static const String officeAccuracyKey = 'office_accuracy';
+  static const String uploadQueueBoxName = 'upload_queue_box';
   static const String uploadQueueKey = 'upload_queue_items';
   static const String uploadSyncTaskName = 'upload_sync_task';
   static const String uploadSyncUniqueName = 'upload_sync_periodic_task';

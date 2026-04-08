@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive/hive.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../models/upload_item_model.dart';
@@ -11,15 +11,14 @@ abstract class UploadQueueLocalDataSource {
   Future<void> saveUploadItems(List<UploadItemModel> items);
 }
 
-class SharedPreferencesUploadQueueLocalDataSource
-    implements UploadQueueLocalDataSource {
-  const SharedPreferencesUploadQueueLocalDataSource(this._sharedPreferences);
+class HiveUploadQueueLocalDataSource implements UploadQueueLocalDataSource {
+  const HiveUploadQueueLocalDataSource(this._box);
 
-  final SharedPreferences _sharedPreferences;
+  final Box<String> _box;
 
   @override
   Future<List<UploadItemModel>> getUploadItems() async {
-    final encoded = _sharedPreferences.getString(AppConstants.uploadQueueKey);
+    final encoded = _box.get(AppConstants.uploadQueueKey);
     if (encoded == null || encoded.isEmpty) {
       return const [];
     }
@@ -44,9 +43,14 @@ class SharedPreferencesUploadQueueLocalDataSource
   @override
   Future<void> saveUploadItems(List<UploadItemModel> items) {
     final payload = items.map((item) => item.toMap()).toList(growable: false);
-    return _sharedPreferences.setString(
-      AppConstants.uploadQueueKey,
-      jsonEncode(payload),
-    );
+    return _box.put(AppConstants.uploadQueueKey, jsonEncode(payload));
   }
+}
+
+Future<Box<String>> openUploadQueueHiveBox() async {
+  if (Hive.isBoxOpen(AppConstants.uploadQueueBoxName)) {
+    return Hive.box<String>(AppConstants.uploadQueueBoxName);
+  }
+
+  return Hive.openBox<String>(AppConstants.uploadQueueBoxName);
 }

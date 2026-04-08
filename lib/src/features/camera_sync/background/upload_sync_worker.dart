@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive/hive.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -14,17 +15,23 @@ void uploadSyncCallbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    final sharedPreferences = await SharedPreferences.getInstance();
+    final appDirectory = await getApplicationDocumentsDirectory();
+    Hive.init(appDirectory.path);
+    final uploadQueueBox = await openUploadQueueHiveBox();
     final repository = UploadQueueRepositoryImpl(
-      uploadQueueLocalDataSource: SharedPreferencesUploadQueueLocalDataSource(
-        sharedPreferences,
+      uploadQueueLocalDataSource: HiveUploadQueueLocalDataSource(
+        uploadQueueBox,
       ),
       uploadRemoteDataSource: MockUploadRemoteDataSource(),
       networkCheckerDataSource: InternetLookupNetworkCheckerDataSource(),
     );
 
-    await ProcessPendingUploadsUseCase(repository)();
-    return Future<bool>.value(true);
+    try {
+      await ProcessPendingUploadsUseCase(repository)();
+      return Future<bool>.value(true);
+    } finally {
+      await uploadQueueBox.close();
+    }
   });
 }
 
