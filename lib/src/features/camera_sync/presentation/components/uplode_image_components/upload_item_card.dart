@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
-import '../../domain/entities/upload_item.dart';
-import '../../domain/entities/upload_status.dart';
-import '../constants/camera_sync_ui_color.dart';
+import '../../../domain/entities/upload_item.dart';
+import '../../../domain/entities/upload_status.dart';
+import '../../constants/camera_sync_ui_color.dart';
 
 class UploadItemCard extends StatelessWidget {
   const UploadItemCard({

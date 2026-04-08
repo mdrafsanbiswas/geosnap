@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../constants/camera_sync_ui_text.dart';
+import '../../constants/camera_sync_ui_text.dart';
 
 class CameraErrorView extends StatelessWidget {
   const CameraErrorView({

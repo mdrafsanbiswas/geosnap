@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../constants/camera_sync_ui_color.dart';
-import '../constants/camera_sync_ui_text.dart';
+import '../../constants/camera_sync_ui_color.dart';
+import '../../constants/camera_sync_ui_text.dart';
 
 class EmptyUploadState extends StatelessWidget {
   const EmptyUploadState({required this.isOnline, super.key});

@@ -5,7 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/upload_queue/upload_queue_bloc.dart';
 import '../bloc/upload_queue/upload_queue_event.dart';
 import '../bloc/upload_queue/upload_queue_state.dart';
-import '../components/upload_manager_components.dart';
+import '../components/uplode_image_components/upload_manager_components.dart';
 import '../constants/camera_sync_ui_color.dart';
 import '../constants/camera_sync_ui_text.dart';
 import 'image_preview_screen.dart';

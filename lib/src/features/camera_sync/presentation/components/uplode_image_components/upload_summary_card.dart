@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../bloc/upload_queue/upload_queue_state.dart';
-import '../constants/camera_sync_ui_color.dart';
-import '../constants/camera_sync_ui_text.dart';
+import '../../bloc/upload_queue/upload_queue_state.dart';
+import '../../constants/camera_sync_ui_color.dart';
+import '../../constants/camera_sync_ui_text.dart';
 
 class UploadSummaryCard extends StatelessWidget {
   const UploadSummaryCard({required this.state, super.key});

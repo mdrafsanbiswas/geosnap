@@ -63,6 +63,10 @@ class CameraCaptureRequested extends CameraEvent {
   const CameraCaptureRequested();
 }
 
+class CameraFlashToggled extends CameraEvent {
+  const CameraFlashToggled();
+}
+
 class CameraLensSelected extends CameraEvent {
   const CameraLensSelected(this.lensDirection);
 

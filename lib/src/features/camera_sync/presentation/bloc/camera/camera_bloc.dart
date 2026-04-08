@@ -19,6 +19,7 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     on<CameraFocusPointRequested>(_onFocusPointRequested);
     on<CameraFocusIndicatorCleared>(_onFocusIndicatorCleared);
     on<CameraCaptureRequested>(_onCaptureRequested);
+    on<CameraFlashToggled>(_onFlashToggled);
     on<CameraLensSelected>(_onLensSelected);
     on<CameraPhotoRemoved>(_onPhotoRemoved);
     on<CameraBatchCleared>(_onBatchCleared);
@@ -268,6 +269,37 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     }
   }
 
+  Future<void> _onFlashToggled(
+    CameraFlashToggled event,
+    Emitter<CameraState> emit,
+  ) async {
+    final controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) {
+      return;
+    }
+
+    final nextFlashMode = state.isFlashEnabled
+        ? FlashMode.off
+        : FlashMode.torch;
+    try {
+      await controller.setFlashMode(nextFlashMode);
+      emit(
+        state.copyWith(
+          isFlashEnabled: !state.isFlashEnabled,
+          clearMessage: true,
+        ),
+      );
+    } on CameraException catch (_) {
+      emit(
+        state.copyWith(
+          message: 'Flash is not available for the current camera lens.',
+        ),
+      );
+    } catch (_) {
+      emit(state.copyWith(message: 'Unable to change flash mode right now.'));
+    }
+  }
+
   Future<void> _onPhotoRemoved(
     CameraPhotoRemoved event,
     Emitter<CameraState> emit,
@@ -367,6 +399,11 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     } catch (_) {
       // Not all devices expose focus mode controls consistently.
     }
+    try {
+      await controller.setFlashMode(FlashMode.off);
+    } catch (_) {
+      // Flash mode controls can be unavailable on some lenses/devices.
+    }
 
     final hasFrontLens = _availableCameras.any(
       (camera) => camera.lensDirection == CameraLensDirection.front,
@@ -381,6 +418,7 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
         minZoom: minZoom,
         maxZoom: maxZoom,
         currentZoom: initialZoom,
+        isFlashEnabled: false,
         zoomPresets: _buildZoomPresets(minZoom, maxZoom),
         selectedLensDirection: selectedCamera.lensDirection,
         hasFrontLens: hasFrontLens,

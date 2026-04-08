@@ -4,11 +4,11 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../bloc/camera/camera_bloc.dart';
-import '../bloc/camera/camera_event.dart';
-import '../bloc/camera/camera_state.dart';
-import '../constants/camera_sync_ui_color.dart';
-import '../constants/camera_sync_ui_text.dart';
+import '../../bloc/camera/camera_bloc.dart';
+import '../../bloc/camera/camera_event.dart';
+import '../../bloc/camera/camera_state.dart';
+import '../../constants/camera_sync_ui_color.dart';
+import '../../constants/camera_sync_ui_text.dart';
 
 class CameraBottomControls extends StatelessWidget {
   const CameraBottomControls({

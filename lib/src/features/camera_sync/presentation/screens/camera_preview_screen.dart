@@ -7,7 +7,7 @@ import '../bloc/camera/camera_state.dart';
 import '../bloc/upload_queue/upload_queue_bloc.dart';
 import '../bloc/upload_queue/upload_queue_event.dart';
 import '../bloc/upload_queue/upload_queue_state.dart';
-import '../components/camera_preview_components.dart';
+import '../components/camera_components/camera_preview_components.dart';
 import '../constants/camera_sync_ui_color.dart';
 import '../constants/camera_sync_ui_text.dart';
 import 'batch_preview_screen.dart';
@@ -115,7 +115,12 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                       ),
                     ),
                     const Positioned.fill(child: CameraOverlay()),
-                    CameraTopBar(onOpenUploadManager: _openUploadManager),
+                    CameraTopBar(
+                      isFlashEnabled: state.isFlashEnabled,
+                      onToggleFlash: () => context.read<CameraBloc>().add(
+                        const CameraFlashToggled(),
+                      ),
+                    ),
                     Positioned(
                       right: 8,
                       top: 110,
