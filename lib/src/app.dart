@@ -76,21 +76,21 @@ class GeoSnapApp extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => BlocProvider(
-          create: (context) => AttendanceBloc(
+          create: (_) => AttendanceBloc(
             getSavedOfficeLocation: GetSavedOfficeLocationUseCase(
-              context.read<AttendanceRepository>(),
+              attendanceRepository,
             ),
             saveOfficeLocation: SaveOfficeLocationUseCase(
-              context.read<AttendanceRepository>(),
+              attendanceRepository,
             ),
             getCurrentLocation: GetCurrentLocationUseCase(
-              context.read<AttendanceRepository>(),
+              attendanceRepository,
             ),
             watchCurrentLocation: WatchCurrentLocationUseCase(
-              context.read<AttendanceRepository>(),
+              attendanceRepository,
             ),
             calculateDistance: CalculateDistanceUseCase(
-              context.read<AttendanceRepository>(),
+              attendanceRepository,
             ),
           )..add(const AttendanceInitialized()),
           child: const AttendanceScreen(),
@@ -108,21 +108,21 @@ class GeoSnapApp extends StatelessWidget {
               create: (_) => CameraBloc()..add(const CameraInitialized()),
             ),
             BlocProvider(
-              create: (context) => UploadQueueBloc(
+              create: (_) => UploadQueueBloc(
                 getUploadItems: GetUploadItemsUseCase(
-                  context.read<UploadQueueRepository>(),
+                  uploadQueueRepository,
                 ),
                 enqueueUploadBatch: EnqueueUploadBatchUseCase(
-                  context.read<UploadQueueRepository>(),
+                  uploadQueueRepository,
                 ),
                 processPendingUploads: ProcessPendingUploadsUseCase(
-                  context.read<UploadQueueRepository>(),
+                  uploadQueueRepository,
                 ),
                 hasNetworkAccess: HasNetworkAccessUseCase(
-                  context.read<UploadQueueRepository>(),
+                  uploadQueueRepository,
                 ),
                 watchNetworkAccess: WatchNetworkAccessUseCase(
-                  context.read<UploadQueueRepository>(),
+                  uploadQueueRepository,
                 ),
               )..add(const UploadQueueInitialized()),
             ),
