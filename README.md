@@ -1,16 +1,58 @@
-# geosnap
+# GeoSnap
 
-A new Flutter project.
+GeoSnap is a Flutter mobile application for location-aware attendance and camera-based batch upload flow. Users can lock an office location, mark attendance within radius, capture photo batches, and rely on offline queue + auto-retry when network connectivity returns.
 
-## Getting Started
+## Project Structure / Approach
 
-This project is a starting point for a Flutter application.
+The project follows a layered feature-first architecture (`data` -> `domain` -> `presentation`) with `flutter_bloc` for predictable state handling. Core BLoC classes are `AttendanceBloc` (attendance/location workflow), `CameraBloc` (camera capture lifecycle), and `UploadQueueBloc` (offline queue, sync, and network-aware auto-resume).
 
-A few resources to get you started if this is your first Flutter project:
+## Generative AI Usage
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Generative AI was used as a development accelerator for scaffolding, architecture reasoning, and performance-driven refactors. The prompts were context-specific and refined iteratively based on feature boundaries and quality goals.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Key usage patterns:
+- Role-based prompting: used to generate clean architecture-friendly codebase structure and initial feature scaffolding.
+- Domain-based prompting: used to generate targeted files for attendance tracking, camera flow, and upload queue handling.
+- System-design context prompting: used to evaluate design trade-offs and flow correctness during implementation.
+
+Example prompt snippets used:
+- `Performance Requirements: The UI must remain smooth and responsive (no frame drops or freezes).`
+- `Minimize unnecessary widget rebuilds using best practices (e.g., state management, selectors, const widgets).`
+- `Mark widgets and variables as const wherever applicable.`
+- `Avoid performance-heavy widgets (e.g., IntrinsicHeight, IntrinsicWidth) unless absolutely necessary.`
+
+## How to Run
+
+1. Clone the repository:
+```bash
+git clone <your-repo-url>
+cd geosnap
+```
+2. Install dependencies:
+```bash
+flutter pub get
+```
+3. Run on a connected device/emulator:
+```bash
+flutter run
+```
+4. (Optional) Verify code quality:
+```bash
+flutter analyze
+flutter test
+```
+
+## Screenshots
+
+Add your final screenshots/GIFs in `assets/screenshots/` and reference them below:
+
+- Home / Starter Screen  
+  ![Home](assets/screenshots/home.png)
+- Attendance Flow  
+  ![Attendance](assets/screenshots/attendance.png)
+- Camera Capture + Batch Preview  
+  ![Camera](assets/screenshots/camera_batch.png)
+- Upload Queue / Sync Status  
+  ![Upload Queue](assets/screenshots/upload_queue.png)
+- Optional Demo GIF  
+  ![Demo](assets/screenshots/geosnap_demo.gif)
