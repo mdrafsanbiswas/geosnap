@@ -53,6 +53,11 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   }
 
   @override
+  Future<void> clearSavedOfficeLocation() {
+    return _officeLocationLocalDataSource.clearOfficeLocation();
+  }
+
+  @override
   Stream<GeoPoint> watchCurrentLocation() {
     return _deviceLocationDataSource.watchPosition().map(
       LocationModel.fromPosition,

@@ -5,6 +5,8 @@ abstract class AttendanceRepository {
 
   Future<void> saveOfficeLocation(GeoPoint location);
 
+  Future<void> clearSavedOfficeLocation();
+
   Future<GeoPoint> getCurrentLocation();
 
   Stream<GeoPoint> watchCurrentLocation();

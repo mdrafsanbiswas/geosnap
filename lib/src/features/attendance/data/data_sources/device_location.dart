@@ -22,12 +22,20 @@ class GeolocatorDeviceLocationDataSource implements DeviceLocationDataSource {
     await _ensureLocationAccess();
 
     try {
+      final lastKnownPosition = await Geolocator.getLastKnownPosition();
       final initialPosition = await Geolocator.getCurrentPosition(
         locationSettings: _singlePositionLocationSettings,
       );
-      if (_hasTargetAccuracy(initialPosition) &&
-          _isFreshPosition(initialPosition)) {
+      if (_isFreshPosition(initialPosition) &&
+          _hasTrackableAccuracy(initialPosition)) {
         return initialPosition;
+      }
+
+      if (lastKnownPosition != null &&
+          _isFreshPosition(lastKnownPosition) &&
+          _hasTrackableAccuracy(lastKnownPosition) &&
+          lastKnownPosition.accuracy <= initialPosition.accuracy) {
+        return lastKnownPosition;
       }
 
       return _resolveStableCurrentPosition(initialPosition);
@@ -121,10 +129,6 @@ class GeolocatorDeviceLocationDataSource implements DeviceLocationDataSource {
         .toList(growable: false);
 
     return Isolate.run(() => _pickStablePositionIndex(serializedSamples));
-  }
-
-  bool _hasTargetAccuracy(Position position) {
-    return position.accuracy <= AppConstants.targetCurrentFixAccuracyInMeters;
   }
 
   bool _hasTrackableAccuracy(Position position) {

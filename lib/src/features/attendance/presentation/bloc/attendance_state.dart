@@ -8,6 +8,8 @@ enum AttendanceViewStatus { initial, loading, ready }
 
 enum AttendanceFeedbackType { neutral, success, error }
 
+enum AttendanceMarkStatus { onTime, late }
+
 class AttendanceState extends Equatable {
   const AttendanceState({
     this.status = AttendanceViewStatus.initial,
@@ -18,6 +20,7 @@ class AttendanceState extends Equatable {
     this.message,
     this.feedbackType = AttendanceFeedbackType.neutral,
     this.attendanceMarkedAt,
+    this.attendanceMarkStatus,
   });
 
   final AttendanceViewStatus status;
@@ -28,6 +31,7 @@ class AttendanceState extends Equatable {
   final String? message;
   final AttendanceFeedbackType feedbackType;
   final DateTime? attendanceMarkedAt;
+  final AttendanceMarkStatus? attendanceMarkStatus;
 
   bool get hasSavedOfficeLocation => officeLocation != null;
 
@@ -50,12 +54,14 @@ class AttendanceState extends Equatable {
     String? message,
     AttendanceFeedbackType? feedbackType,
     DateTime? attendanceMarkedAt,
+    AttendanceMarkStatus? attendanceMarkStatus,
     bool clearOfficeLocation = false,
     bool clearCurrentLocation = false,
     bool clearDistance = false,
     bool clearLocationErrorType = false,
     bool clearMessage = false,
     bool clearAttendanceMarkedAt = false,
+    bool clearAttendanceMarkStatus = false,
   }) {
     return AttendanceState(
       status: status ?? this.status,
@@ -76,6 +82,9 @@ class AttendanceState extends Equatable {
       attendanceMarkedAt: clearAttendanceMarkedAt
           ? null
           : attendanceMarkedAt ?? this.attendanceMarkedAt,
+      attendanceMarkStatus: clearAttendanceMarkStatus
+          ? null
+          : attendanceMarkStatus ?? this.attendanceMarkStatus,
     );
   }
 
@@ -89,5 +98,6 @@ class AttendanceState extends Equatable {
     message,
     feedbackType,
     attendanceMarkedAt,
+    attendanceMarkStatus,
   ];
 }

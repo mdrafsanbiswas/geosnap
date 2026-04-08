@@ -7,6 +7,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/location_exception.dart';
 import '../../domain/entities/geo_point.dart';
 import '../../domain/usecases/calculate_distance.dart';
+import '../../domain/usecases/clear_saved_office_location.dart';
 import '../../domain/usecases/get_current_location.dart';
 import '../../domain/usecases/get_saved_office_location.dart';
 import '../../domain/usecases/save_office_location.dart';
@@ -18,17 +19,20 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
   AttendanceBloc({
     required GetSavedOfficeLocationUseCase getSavedOfficeLocation,
     required SaveOfficeLocationUseCase saveOfficeLocation,
+    required ClearSavedOfficeLocationUseCase clearSavedOfficeLocation,
     required GetCurrentLocationUseCase getCurrentLocation,
     required WatchCurrentLocationUseCase watchCurrentLocation,
     required CalculateDistanceUseCase calculateDistance,
   }) : _getSavedOfficeLocation = getSavedOfficeLocation,
        _saveOfficeLocation = saveOfficeLocation,
+       _clearSavedOfficeLocation = clearSavedOfficeLocation,
        _getCurrentLocation = getCurrentLocation,
        _watchCurrentLocation = watchCurrentLocation,
        _calculateDistance = calculateDistance,
        super(const AttendanceState()) {
     on<AttendanceInitialized>(_onInitialized);
     on<OfficeLocationRequested>(_onOfficeLocationRequested);
+    on<OfficeLocationResetRequested>(_onOfficeLocationResetRequested);
     on<LocationTrackingRetried>(_onLocationTrackingRetried);
     on<AttendanceMarked>(_onAttendanceMarked);
     on<MessageCleared>(_onMessageCleared);
@@ -38,6 +42,7 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
 
   final GetSavedOfficeLocationUseCase _getSavedOfficeLocation;
   final SaveOfficeLocationUseCase _saveOfficeLocation;
+  final ClearSavedOfficeLocationUseCase _clearSavedOfficeLocation;
   final GetCurrentLocationUseCase _getCurrentLocation;
   final WatchCurrentLocationUseCase _watchCurrentLocation;
   final CalculateDistanceUseCase _calculateDistance;
@@ -66,15 +71,26 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
       ),
     );
 
-    if (savedOfficeLocation != null) {
-      await _refreshLocationTracking(savedOfficeLocation, emit);
-    }
+    await _refreshLocationTracking(
+      officeLocation: savedOfficeLocation,
+      emit: emit,
+    );
   }
 
   Future<void> _onOfficeLocationRequested(
     OfficeLocationRequested event,
     Emitter<AttendanceState> emit,
   ) async {
+    if (state.officeLocation != null) {
+      emit(
+        state.copyWith(
+          message: 'Office location is locked. Use reset to change it.',
+          feedbackType: AttendanceFeedbackType.error,
+        ),
+      );
+      return;
+    }
+
     emit(
       state.copyWith(
         status: AttendanceViewStatus.loading,
@@ -84,7 +100,8 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     );
 
     try {
-      final currentLocation = await _getCurrentLocation();
+      final currentLocation =
+          state.currentLocation ?? await _getCurrentLocation();
       await _saveOfficeLocation(currentLocation);
 
       emit(
@@ -95,7 +112,8 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
           distanceInMeters: 0,
           clearLocationErrorType: true,
           clearAttendanceMarkedAt: true,
-          message: 'Office location saved successfully.',
+          clearAttendanceMarkStatus: true,
+          message: 'Office location saved. You can now mark attendance nearby.',
           feedbackType: AttendanceFeedbackType.success,
         ),
       );
@@ -106,15 +124,38 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     }
   }
 
+  Future<void> _onOfficeLocationResetRequested(
+    OfficeLocationResetRequested event,
+    Emitter<AttendanceState> emit,
+  ) async {
+    emit(
+      state.copyWith(status: AttendanceViewStatus.loading, clearMessage: true),
+    );
+
+    await _clearSavedOfficeLocation();
+
+    emit(
+      state.copyWith(
+        status: AttendanceViewStatus.ready,
+        clearOfficeLocation: true,
+        clearDistance: true,
+        clearLocationErrorType: true,
+        clearAttendanceMarkedAt: true,
+        clearAttendanceMarkStatus: true,
+        message: 'Office location reset. Set it again when ready.',
+        feedbackType: AttendanceFeedbackType.success,
+      ),
+    );
+
+    if (state.currentLocation == null) {
+      await _refreshLocationTracking(officeLocation: null, emit: emit);
+    }
+  }
+
   Future<void> _onLocationTrackingRetried(
     LocationTrackingRetried event,
     Emitter<AttendanceState> emit,
   ) async {
-    final officeLocation = state.officeLocation;
-    if (officeLocation == null) {
-      return;
-    }
-
     emit(
       state.copyWith(
         status: AttendanceViewStatus.loading,
@@ -123,7 +164,10 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
       ),
     );
 
-    await _refreshLocationTracking(officeLocation, emit);
+    await _refreshLocationTracking(
+      officeLocation: state.officeLocation,
+      emit: emit,
+    );
   }
 
   void _onAttendanceMarked(
@@ -134,17 +178,24 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
       emit(
         state.copyWith(
           message:
-              'Move within ${AppConstants.attendanceRadiusInMeters.toInt()} meters of the office to mark attendance.',
+              'Move within ${AppConstants.attendanceRadiusInMeters.toInt()} meters of office to mark attendance.',
           feedbackType: AttendanceFeedbackType.error,
         ),
       );
       return;
     }
 
+    final markedAt = DateTime.now();
+    final attendanceMarkStatus = _resolveAttendanceMarkStatus(markedAt);
+    final statusText = attendanceMarkStatus == AttendanceMarkStatus.late
+        ? 'late'
+        : 'on time';
+
     emit(
       state.copyWith(
-        attendanceMarkedAt: DateTime.now(),
-        message: 'Attendance marked successfully.',
+        attendanceMarkedAt: markedAt,
+        attendanceMarkStatus: attendanceMarkStatus,
+        message: 'Attendance marked at ${_formatTime(markedAt)} ($statusText).',
         feedbackType: AttendanceFeedbackType.success,
       ),
     );
@@ -169,6 +220,25 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
   ) {
     final officeLocation = state.officeLocation;
     if (officeLocation == null) {
+      final previousCurrentLocation = state.currentLocation;
+      if (previousCurrentLocation != null) {
+        final deltaInMeters = _calculateDistance(
+          origin: previousCurrentLocation,
+          destination: event.currentLocation,
+        );
+        if (deltaInMeters < AppConstants.minDistanceDeltaForUiUpdateInMeters &&
+            state.locationErrorType == null) {
+          return;
+        }
+      }
+
+      emit(
+        state.copyWith(
+          status: AttendanceViewStatus.ready,
+          currentLocation: event.currentLocation,
+          clearLocationErrorType: true,
+        ),
+      );
       return;
     }
 
@@ -197,17 +267,27 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     );
   }
 
-  Future<void> _refreshLocationTracking(
-    GeoPoint officeLocation,
-    Emitter<AttendanceState> emit,
-  ) async {
+  Future<void> _refreshLocationTracking({
+    required GeoPoint? officeLocation,
+    required Emitter<AttendanceState> emit,
+  }) async {
     try {
       final currentLocation = await _getCurrentLocation();
-      _updateDistance(
-        officeLocation: officeLocation,
-        currentLocation: currentLocation,
-        emit: emit,
-      );
+      if (officeLocation == null) {
+        emit(
+          state.copyWith(
+            status: AttendanceViewStatus.ready,
+            currentLocation: currentLocation,
+            clearLocationErrorType: true,
+          ),
+        );
+      } else {
+        _updateDistance(
+          officeLocation: officeLocation,
+          currentLocation: currentLocation,
+          emit: emit,
+        );
+      }
 
       emit(
         state.copyWith(
@@ -297,6 +377,37 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     );
 
     return math.max(0, rawDistanceInMeters - compensationInMeters);
+  }
+
+  AttendanceMarkStatus _resolveAttendanceMarkStatus(DateTime markedAt) {
+    final windowStart = DateTime(
+      markedAt.year,
+      markedAt.month,
+      markedAt.day,
+      AppConstants.attendanceStartHour,
+      AppConstants.attendanceStartMinute,
+    );
+    final windowEnd = DateTime(
+      markedAt.year,
+      markedAt.month,
+      markedAt.day,
+      AppConstants.attendanceEndHour,
+      AppConstants.attendanceEndMinute,
+    );
+    final isWithinWindow =
+        !markedAt.isBefore(windowStart) && !markedAt.isAfter(windowEnd);
+
+    return isWithinWindow
+        ? AttendanceMarkStatus.onTime
+        : AttendanceMarkStatus.late;
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final hour = dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
+    final safeHour = hour == 0 ? 12 : hour;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final suffix = dateTime.hour >= 12 ? 'PM' : 'AM';
+    return '$safeHour:$minute $suffix';
   }
 
   void _emitLocationError(

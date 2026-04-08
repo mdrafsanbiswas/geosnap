@@ -14,6 +14,7 @@ import 'features/camera_sync/presentation/bloc/upload_queue/upload_queue_bloc.da
 import 'features/camera_sync/presentation/bloc/upload_queue/upload_queue_event.dart';
 import 'features/camera_sync/presentation/screens/camera_preview_screen.dart';
 import 'features/attendance/domain/repositories/attendance_repository.dart';
+import 'features/attendance/domain/usecases/clear_saved_office_location.dart';
 import 'features/attendance/domain/usecases/calculate_distance.dart';
 import 'features/attendance/domain/usecases/get_current_location.dart';
 import 'features/attendance/domain/usecases/get_saved_office_location.dart';
@@ -47,7 +48,7 @@ class GeoSnapApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: const Color(0xFFF4F6FB),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
+          backgroundColor: Colors.white,
           elevation: 0,
           scrolledUnderElevation: 0,
           systemOverlayStyle: SystemUiOverlayStyle(
@@ -102,6 +103,9 @@ class GeoSnapApp extends StatelessWidget {
               attendanceRepository,
             ),
             saveOfficeLocation: SaveOfficeLocationUseCase(attendanceRepository),
+            clearSavedOfficeLocation: ClearSavedOfficeLocationUseCase(
+              attendanceRepository,
+            ),
             getCurrentLocation: GetCurrentLocationUseCase(attendanceRepository),
             watchCurrentLocation: WatchCurrentLocationUseCase(
               attendanceRepository,

@@ -17,6 +17,10 @@ class OfficeLocationRequested extends AttendanceEvent {
   const OfficeLocationRequested();
 }
 
+class OfficeLocationResetRequested extends AttendanceEvent {
+  const OfficeLocationResetRequested();
+}
+
 class LocationTrackingRetried extends AttendanceEvent {
   const LocationTrackingRetried();
 }

@@ -7,6 +7,8 @@ abstract class OfficeLocationLocalDataSource {
   Future<LocationModel?> getSavedOfficeLocation();
 
   Future<void> saveOfficeLocation(LocationModel location);
+
+  Future<void> clearOfficeLocation();
 }
 
 class SharedPreferencesOfficeLocationLocalDataSource
@@ -56,5 +58,12 @@ class SharedPreferencesOfficeLocationLocalDataSource
     } else {
       await _sharedPreferences.remove(AppConstants.officeAccuracyKey);
     }
+  }
+
+  @override
+  Future<void> clearOfficeLocation() async {
+    await _sharedPreferences.remove(AppConstants.officeLatitudeKey);
+    await _sharedPreferences.remove(AppConstants.officeLongitudeKey);
+    await _sharedPreferences.remove(AppConstants.officeAccuracyKey);
   }
 }
