@@ -100,97 +100,96 @@ class OfficeLocationCard extends StatelessWidget {
                           ),
                         ),
                       )
-                    : IgnorePointer(
-                        child: GoogleMap(
-                          myLocationEnabled: false,
-                          myLocationButtonEnabled: false,
-                          zoomControlsEnabled: false,
-                          zoomGesturesEnabled: false,
-                          scrollGesturesEnabled: false,
-                          rotateGesturesEnabled: false,
-                          tiltGesturesEnabled: false,
-                          initialCameraPosition: CameraPosition(
-                            target: LatLng(
-                              previewLocation.latitude,
-                              previewLocation.longitude,
-                            ),
-                            zoom: 17,
+                    : GoogleMap(
+                        myLocationEnabled: false,
+                        myLocationButtonEnabled: false,
+                        zoomControlsEnabled: true,
+                        zoomGesturesEnabled: true,
+                        // Keep the card preview anchored while allowing zoom in/out.
+                        scrollGesturesEnabled: false,
+                        rotateGesturesEnabled: false,
+                        tiltGesturesEnabled: false,
+                        initialCameraPosition: CameraPosition(
+                          target: LatLng(
+                            previewLocation.latitude,
+                            previewLocation.longitude,
                           ),
-                          markers: {
-                            if (officeLocation != null)
-                              Marker(
-                                markerId: const MarkerId(
-                                  AttendanceUiText.officeMarkerId,
-                                ),
-                                position: LatLng(
-                                  officeLocation!.latitude,
-                                  officeLocation!.longitude,
-                                ),
-                                zIndexInt: 1,
-                                icon:
-                                    officeLocationMarkerIcon ??
-                                    BitmapDescriptor.defaultMarkerWithHue(
-                                      BitmapDescriptor.hueRed,
-                                    ),
-                                anchor: const Offset(0.5, 1),
-                                infoWindow: const InfoWindow(
-                                  title: AttendanceUiText.officeMarkerTitle,
-                                ),
-                              ),
-                            if (currentLocation != null)
-                              Marker(
-                                markerId: const MarkerId(
-                                  AttendanceUiText.currentMarkerId,
-                                ),
-                                position: LatLng(
-                                  currentLocation!.latitude,
-                                  currentLocation!.longitude,
-                                ),
-                                zIndexInt: 2,
-                                icon:
-                                    currentLocationMarkerIcon ??
-                                    BitmapDescriptor.defaultMarkerWithHue(
-                                      BitmapDescriptor.hueAzure,
-                                    ),
-                                anchor: const Offset(0.5, 0.5),
-                                infoWindow: const InfoWindow(
-                                  title: AttendanceUiText.currentMarkerTitle,
-                                ),
-                              ),
-                          },
-                          circles: {
-                            if (officeLocation != null)
-                              Circle(
-                                circleId: const CircleId(
-                                  AttendanceUiText.officeRadiusId,
-                                ),
-                                center: LatLng(
-                                  officeLocation!.latitude,
-                                  officeLocation!.longitude,
-                                ),
-                                radius: AppConstants.attendanceRadiusInMeters,
-                                strokeColor: AttendanceUiColor.danger,
-                                fillColor: AttendanceUiColor.officeRadiusFill,
-                                strokeWidth: 2,
-                              ),
-                            if (currentLocation != null)
-                              Circle(
-                                circleId: const CircleId(
-                                  AttendanceUiText.currentAccuracyId,
-                                ),
-                                center: LatLng(
-                                  currentLocation!.latitude,
-                                  currentLocation!.longitude,
-                                ),
-                                radius: _currentLocationAccuracyRadius(
-                                  currentLocation!.accuracyInMeters,
-                                ),
-                                strokeColor: AttendanceUiColor.accuracyStroke,
-                                fillColor: AttendanceUiColor.accuracyFill,
-                                strokeWidth: 1,
-                              ),
-                          },
+                          zoom: 17,
                         ),
+                        markers: {
+                          if (officeLocation != null)
+                            Marker(
+                              markerId: const MarkerId(
+                                AttendanceUiText.officeMarkerId,
+                              ),
+                              position: LatLng(
+                                officeLocation!.latitude,
+                                officeLocation!.longitude,
+                              ),
+                              zIndexInt: 1,
+                              icon:
+                                  officeLocationMarkerIcon ??
+                                  BitmapDescriptor.defaultMarkerWithHue(
+                                    BitmapDescriptor.hueRed,
+                                  ),
+                              anchor: const Offset(0.5, 1),
+                              infoWindow: const InfoWindow(
+                                title: AttendanceUiText.officeMarkerTitle,
+                              ),
+                            ),
+                          if (currentLocation != null)
+                            Marker(
+                              markerId: const MarkerId(
+                                AttendanceUiText.currentMarkerId,
+                              ),
+                              position: LatLng(
+                                currentLocation!.latitude,
+                                currentLocation!.longitude,
+                              ),
+                              zIndexInt: 2,
+                              icon:
+                                  currentLocationMarkerIcon ??
+                                  BitmapDescriptor.defaultMarkerWithHue(
+                                    BitmapDescriptor.hueAzure,
+                                  ),
+                              anchor: const Offset(0.5, 0.5),
+                              infoWindow: const InfoWindow(
+                                title: AttendanceUiText.currentMarkerTitle,
+                              ),
+                            ),
+                        },
+                        circles: {
+                          if (officeLocation != null)
+                            Circle(
+                              circleId: const CircleId(
+                                AttendanceUiText.officeRadiusId,
+                              ),
+                              center: LatLng(
+                                officeLocation!.latitude,
+                                officeLocation!.longitude,
+                              ),
+                              radius: AppConstants.attendanceRadiusInMeters,
+                              strokeColor: AttendanceUiColor.danger,
+                              fillColor: AttendanceUiColor.officeRadiusFill,
+                              strokeWidth: 2,
+                            ),
+                          if (currentLocation != null)
+                            Circle(
+                              circleId: const CircleId(
+                                AttendanceUiText.currentAccuracyId,
+                              ),
+                              center: LatLng(
+                                currentLocation!.latitude,
+                                currentLocation!.longitude,
+                              ),
+                              radius: _currentLocationAccuracyRadius(
+                                currentLocation!.accuracyInMeters,
+                              ),
+                              strokeColor: AttendanceUiColor.accuracyStroke,
+                              fillColor: AttendanceUiColor.accuracyFill,
+                              strokeWidth: 1,
+                            ),
+                        },
                       ),
               ),
             ),
