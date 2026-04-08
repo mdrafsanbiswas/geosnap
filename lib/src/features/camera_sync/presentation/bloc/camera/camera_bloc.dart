@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -31,12 +32,7 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     CameraInitialized event,
     Emitter<CameraState> emit,
   ) async {
-    emit(
-      state.copyWith(
-        status: CameraViewStatus.loading,
-        clearMessage: true,
-      ),
-    );
+    emit(state.copyWith(status: CameraViewStatus.loading, clearMessage: true));
 
     await _disposeController();
 
@@ -52,8 +48,11 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
         return;
       }
 
-      final selectedCamera = cameras
-              .where((camera) => camera.lensDirection == CameraLensDirection.back)
+      final selectedCamera =
+          cameras
+              .where(
+                (camera) => camera.lensDirection == CameraLensDirection.back,
+              )
               .firstOrNull ??
           cameras.first;
 
@@ -157,10 +156,7 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
 
       final markerId = state.focusMarkerId + 1;
       emit(
-        state.copyWith(
-          focusPoint: event.tapPosition,
-          focusMarkerId: markerId,
-        ),
+        state.copyWith(focusPoint: event.tapPosition, focusMarkerId: markerId),
       );
 
       unawaited(
@@ -273,15 +269,13 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
       }
     }
 
-    emit(
-      state.copyWith(
-        capturedPhotoPaths: const [],
-        clearFocusPoint: true,
-      ),
-    );
+    emit(state.copyWith(capturedPhotoPaths: const [], clearFocusPoint: true));
   }
 
-  void _onMessageCleared(CameraMessageCleared event, Emitter<CameraState> emit) {
+  void _onMessageCleared(
+    CameraMessageCleared event,
+    Emitter<CameraState> emit,
+  ) {
     if (state.message == null) {
       return;
     }
@@ -295,10 +289,9 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
       return;
     }
 
-    final clampedZoom = requestedZoom.clamp(state.minZoom, state.maxZoom);
-    final nextZoom = clampedZoom is double
-        ? clampedZoom
-        : (clampedZoom as num).toDouble();
+    final nextZoom = requestedZoom
+        .clamp(state.minZoom, state.maxZoom)
+        .toDouble();
 
     if ((nextZoom - state.currentZoom).abs() < 0.01) {
       return;
@@ -314,7 +307,9 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
 
   Future<String> _persistCapturedFile(String sourcePath) async {
     final directory = await getApplicationDocumentsDirectory();
-    final captureDirectory = Directory(p.join(directory.path, 'captured_batches'));
+    final captureDirectory = Directory(
+      p.join(directory.path, 'captured_batches'),
+    );
     if (!await captureDirectory.exists()) {
       await captureDirectory.create(recursive: true);
     }
@@ -328,9 +323,12 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
   }
 
   List<double> _buildZoomPresets(double minZoom, double maxZoom) {
-    final candidates = [0.5, 1, 2, 3, 5]
-        .where((zoom) => zoom >= minZoom && zoom <= maxZoom)
-        .toSet();
+    final candidates = <double>{};
+    for (final zoom in [0.5, 1.0, 2.0, 3.0, 5.0]) {
+      if (zoom >= minZoom && zoom <= maxZoom) {
+        candidates.add(zoom);
+      }
+    }
 
     if (candidates.isEmpty) {
       candidates.add(1.0.clamp(minZoom, maxZoom).toDouble());

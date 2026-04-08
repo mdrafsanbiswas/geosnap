@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:geosnap/src/features/camera_sync/domain/entities/upload_item.dart';
+import 'package:geosnap/src/features/camera_sync/domain/repositories/upload_queue_repository.dart';
 import 'package:geosnap/src/features/attendance/data/data_sources/device_location.dart';
 import 'package:geosnap/src/features/attendance/data/data_sources/office_location_local.dart';
 import 'package:geosnap/src/features/attendance/data/repositories/attendance_repository_impl.dart';
@@ -21,12 +23,17 @@ void main() {
           SharedPreferencesOfficeLocationLocalDataSource(sharedPreferences),
     );
 
-    await tester.pumpWidget(GeoSnapApp(attendanceRepository: repository));
+    await tester.pumpWidget(
+      GeoSnapApp(
+        attendanceRepository: repository,
+        uploadQueueRepository: const _FakeUploadQueueRepository(),
+      ),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Attendance'), findsOneWidget);
-    expect(find.text('Set Office Location'), findsOneWidget);
-    expect(find.text('Mark Attendance'), findsOneWidget);
+    expect(find.text('GeoSnap'), findsOneWidget);
+    expect(find.text('Task 1'), findsOneWidget);
+    expect(find.text('Task 2'), findsOneWidget);
   });
 }
 
@@ -38,4 +45,33 @@ class _FakeDeviceLocationDataSource implements DeviceLocationDataSource {
 
   @override
   Stream<Position> watchPosition() => const Stream.empty();
+}
+
+class _FakeUploadQueueRepository implements UploadQueueRepository {
+  const _FakeUploadQueueRepository();
+
+  @override
+  Future<List<UploadItem>> enqueueBatch(List<String> filePaths) async {
+    return const [];
+  }
+
+  @override
+  Future<List<UploadItem>> getUploadItems() async {
+    return const [];
+  }
+
+  @override
+  Future<bool> hasNetworkAccess() async {
+    return true;
+  }
+
+  @override
+  Future<List<UploadItem>> processPendingUploads({
+    UploadItemsListener? onItemsUpdated,
+  }) async {
+    return const [];
+  }
+
+  @override
+  Stream<bool> watchNetworkAccess() => const Stream<bool>.empty();
 }
