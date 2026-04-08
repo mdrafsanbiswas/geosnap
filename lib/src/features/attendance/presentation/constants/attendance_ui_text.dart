@@ -5,13 +5,15 @@ class AttendanceUiText {
 
   static const officeTitle = 'Office Location';
   static const reset = 'Reset';
-  static const officeHintSet = 'Set your office. You can reset it later if required.';
+  static const officeHintSet =
+      'Set your office. You can reset it later if required.';
   static const officeHintLocked =
       'Office location is locked. Use reset to set it again.';
   static const officeLegend = 'Office';
   static const youLegend = 'You';
-  static const setOffice = 'Set Office Location';
-  static const officeSaved = 'Office location saved';
+  static const setOffice = 'Set office location';
+  static const officeSaved = 'Set office location';
+  static const syncingLocation = 'Syncing location ..';
 
   static const officeMarkerTitle = 'Office Location';
   static const currentMarkerTitle = 'Your Current Location';
