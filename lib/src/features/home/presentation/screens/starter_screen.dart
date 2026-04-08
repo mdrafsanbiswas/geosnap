@@ -14,6 +14,7 @@ class StarterScreen extends StatelessWidget {
 
   final VoidCallback onOpenAttendance;
   final VoidCallback onOpenCameraSync;
+  static const double _taskCardHeight = 172;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +34,7 @@ class StarterScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'GeoSnap',
+                  'Geo Snap',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: const Color(0xFF0E1B3D),
@@ -47,25 +48,31 @@ class StarterScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                _TaskCard(
-                  title: 'Attendance',
-                  subtitle: 'Geo-Fenced Check-in',
-                  description:
-                      'Set office location, track distance, and mark attendance inside 50m.',
-                  icon: Icons.location_pin,
-                  color: const Color(0xFF386BFF),
-                  onTap: onOpenAttendance,
+                SizedBox(
+                  height: _taskCardHeight,
+                  child: _TaskCard(
+                    title: 'Attendance',
+                    subtitle: 'Geo-Fenced Check-in',
+                    description:
+                        'Set office location, track distance, and mark attendance inside 50m.',
+                    icon: Icons.location_pin,
+                    color: const Color(0xFF386BFF),
+                    onTap: onOpenAttendance,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                _TaskCard(
-                  title: 'Camera & Sync',
-                  subtitle: 'Batch Capture Uploads',
-                  description:
-                      'Capture image batches, upload with progress, retain pending queue, and retry automatically.',
-                  icon: Icons.camera_alt_rounded,
-                  color: const Color(0xFF0B172B),
-                  onTap: onOpenCameraSync,
-                  notificationChip: const _UploadQueueNotificationChip(),
+                SizedBox(
+                  height: _taskCardHeight,
+                  child: _TaskCard(
+                    title: 'Camera & Sync',
+                    subtitle: 'Batch Capture Uploads',
+                    description:
+                        'Capture image batches, upload with progress, retain pending queue, and retry automatically.',
+                    icon: Icons.camera_alt_rounded,
+                    color: const Color(0xFF0B172B),
+                    onTap: onOpenCameraSync,
+                    notificationChip: const _UploadQueueNotificationChip(),
+                  ),
                 ),
               ],
             ),
