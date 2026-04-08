@@ -63,7 +63,7 @@ class UploadQueueRepositoryImpl implements UploadQueueRepository {
       return items;
     }
 
-    final hasNetwork = await hasNetworkAccess();
+    final hasNetwork = await _hasStableNetworkAccess();
     if (!hasNetwork) {
       items = _markWaitingForNetwork(items);
       await _persist(items);
@@ -77,7 +77,7 @@ class UploadQueueRepositoryImpl implements UploadQueueRepository {
         continue;
       }
 
-      final stillConnected = await hasNetworkAccess();
+      final stillConnected = await _hasStableNetworkAccess();
       if (!stillConnected) {
         items = _markWaitingForNetwork(items);
         await _persist(items);
@@ -95,7 +95,12 @@ class UploadQueueRepositoryImpl implements UploadQueueRepository {
 
       try {
         await _uploadRemoteDataSource.uploadFile(
-          filePath: item.filePath,
+          request: UploadFileRequest(
+            filePath: item.filePath,
+            itemId: item.id,
+            batchId: item.batchId,
+            createdAt: item.createdAt,
+          ),
           onProgress: (progress) async {
             items[index] = items[index].copyWith(
               status: UploadStatus.uploading,
@@ -114,7 +119,7 @@ class UploadQueueRepositoryImpl implements UploadQueueRepository {
           clearErrorMessage: true,
         );
       } on MockUploadException catch (error) {
-        final onlineAfterError = await hasNetworkAccess();
+        final onlineAfterError = await _hasStableNetworkAccess();
         items[index] = items[index].copyWith(
           status: onlineAfterError
               ? UploadStatus.failed
@@ -125,7 +130,7 @@ class UploadQueueRepositoryImpl implements UploadQueueRepository {
           errorMessage: error.message,
         );
       } catch (_) {
-        final onlineAfterError = await hasNetworkAccess();
+        final onlineAfterError = await _hasStableNetworkAccess();
         items[index] = items[index].copyWith(
           status: onlineAfterError
               ? UploadStatus.failed
@@ -147,6 +152,16 @@ class UploadQueueRepositoryImpl implements UploadQueueRepository {
   @override
   Future<bool> hasNetworkAccess() {
     return _networkCheckerDataSource.hasNetworkAccess();
+  }
+
+  Future<bool> _hasStableNetworkAccess() async {
+    final firstCheck = await hasNetworkAccess();
+    if (!firstCheck) {
+      return false;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    return hasNetworkAccess();
   }
 
   @override

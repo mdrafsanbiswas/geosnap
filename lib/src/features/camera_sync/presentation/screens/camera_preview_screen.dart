@@ -23,6 +23,7 @@ class CameraPreviewScreen extends StatefulWidget {
 
 class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
   double _baseZoom = 1;
+  final GlobalKey _previewKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
@@ -83,89 +84,104 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
                 );
               }
 
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  final previewSize = Size(
-                    constraints.maxWidth,
-                    constraints.maxHeight,
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onScaleStart: (_) => _baseZoom = state.currentZoom,
+                onScaleUpdate: (details) {
+                  context.read<CameraBloc>().add(
+                    CameraZoomChanged(_baseZoom * details.scale),
                   );
-
-                  return GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onScaleStart: (_) => _baseZoom = state.currentZoom,
-                    onScaleUpdate: (details) {
-                      context.read<CameraBloc>().add(
-                        CameraZoomChanged(_baseZoom * details.scale),
-                      );
-                    },
-                    onTapUp: (details) {
-                      context.read<CameraBloc>().add(
-                        CameraFocusPointRequested(
-                          tapPosition: details.localPosition,
-                          previewSize: previewSize,
-                        ),
-                      );
-                    },
-                    child: Stack(
-                      children: [
-                        Positioned.fill(child: CameraPreview(controller)),
-                        const Positioned.fill(child: _CameraOverlay()),
-                        if (state.focusPoint != null)
-                          Positioned(
-                            left: state.focusPoint!.dx - 28,
-                            top: state.focusPoint!.dy - 28,
-                            child: IgnorePointer(
-                              child: Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.95),
-                                    width: 1.7,
-                                  ),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                            ),
-                          ),
-                        _TopBar(onOpenUploadManager: _openUploadManager),
-                        Positioned(
-                          right: 8,
-                          top: 110,
-                          bottom: 200,
-                          child: _ZoomRail(
-                            minZoom: state.minZoom,
-                            maxZoom: state.maxZoom,
-                            currentZoom: state.currentZoom,
-                            onChanged: (zoom) => context.read<CameraBloc>().add(
-                              CameraZoomChanged(zoom),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 12,
-                          right: 12,
-                          bottom: 18,
-                          child: _BottomControls(
-                            state: state,
-                            onOpenBatchPreview: _openBatchPreview,
-                            onCapture: () => context.read<CameraBloc>().add(
-                              const CameraCaptureRequested(),
-                            ),
-                            onOpenUploadManager: _openUploadManager,
-                            onUploadCurrentBatch: () =>
-                                _uploadCurrentBatch(state.capturedPhotoPaths),
-                          ),
-                        ),
-                      ],
+                },
+                onTapDown: (details) {
+                  final previewTapDetails = _resolvePreviewTap(
+                    details.globalPosition,
+                  );
+                  if (previewTapDetails == null) {
+                    return;
+                  }
+                  context.read<CameraBloc>().add(
+                    CameraFocusPointRequested(
+                      tapPosition: previewTapDetails.localPosition,
+                      previewSize: previewTapDetails.previewSize,
+                      indicatorPosition: details.localPosition,
                     ),
                   );
                 },
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: _CameraPreviewLayer(
+                        controller: controller,
+                        previewKey: _previewKey,
+                      ),
+                    ),
+                    const Positioned.fill(child: _CameraOverlay()),
+                    _TopBar(onOpenUploadManager: _openUploadManager),
+                    Positioned(
+                      right: 8,
+                      top: 110,
+                      bottom: 200,
+                      child: _ZoomRail(
+                        minZoom: state.minZoom,
+                        maxZoom: state.maxZoom,
+                        currentZoom: state.currentZoom,
+                        onChanged: (zoom) => context.read<CameraBloc>().add(
+                          CameraZoomChanged(zoom),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 12,
+                      right: 12,
+                      bottom: 18,
+                      child: _BottomControls(
+                        state: state,
+                        onOpenBatchPreview: _openBatchPreview,
+                        onCapture: () => context.read<CameraBloc>().add(
+                          const CameraCaptureRequested(),
+                        ),
+                        onLensSelected: (lensDirection) => context
+                            .read<CameraBloc>()
+                            .add(CameraLensSelected(lensDirection)),
+                        onUploadCurrentBatch: () =>
+                            _uploadCurrentBatch(state.capturedPhotoPaths),
+                      ),
+                    ),
+                  ],
+                ),
               );
             },
           ),
         ),
       ),
+    );
+  }
+
+  _PreviewTapDetails? _resolvePreviewTap(Offset globalPosition) {
+    final previewContext = _previewKey.currentContext;
+    if (previewContext == null) {
+      return null;
+    }
+
+    final renderObject = previewContext.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) {
+      return null;
+    }
+
+    final localPosition = renderObject.globalToLocal(globalPosition);
+    final previewSize = renderObject.size;
+    final isInsidePreview =
+        localPosition.dx >= 0 &&
+        localPosition.dy >= 0 &&
+        localPosition.dx <= previewSize.width &&
+        localPosition.dy <= previewSize.height;
+    if (!isInsidePreview) {
+      return null;
+    }
+
+    return _PreviewTapDetails(
+      localPosition: localPosition,
+      previewSize: previewSize,
     );
   }
 
@@ -226,6 +242,40 @@ class _CameraOverlay extends StatelessWidget {
           ],
           stops: const [0, 0.5, 1],
         ),
+      ),
+    );
+  }
+}
+
+class _CameraPreviewLayer extends StatelessWidget {
+  const _CameraPreviewLayer({
+    required this.controller,
+    required this.previewKey,
+  });
+
+  final CameraController controller;
+  final GlobalKey previewKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final rawPreviewSize = controller.value.previewSize;
+    final fallbackAspectRatio = controller.value.aspectRatio <= 0
+        ? 1.0
+        : 1 / controller.value.aspectRatio;
+    final previewAspectRatio =
+        rawPreviewSize == null ||
+            rawPreviewSize.width <= 0 ||
+            rawPreviewSize.height <= 0
+        ? fallbackAspectRatio
+        : rawPreviewSize.height / rawPreviewSize.width;
+
+    return Center(
+      child: AspectRatio(
+        key: previewKey,
+        aspectRatio: previewAspectRatio <= 0
+            ? fallbackAspectRatio
+            : previewAspectRatio,
+        child: CameraPreview(controller),
       ),
     );
   }
@@ -300,9 +350,16 @@ class _TopBar extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  IconButton.filledTonal(
+                  IconButton(
                     onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.close_rounded),
+                    icon: const Icon(Icons.chevron_left_rounded),
+                    color: Colors.white,
+                    iconSize: 34,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 44,
+                      height: 44,
+                    ),
                   ),
                   const Spacer(),
                   IconButton.filledTonal(
@@ -408,6 +465,16 @@ class _QueueSummary {
   int get hashCode => Object.hash(queuedCount, uploadingCount, isOnline);
 }
 
+class _PreviewTapDetails {
+  const _PreviewTapDetails({
+    required this.localPosition,
+    required this.previewSize,
+  });
+
+  final Offset localPosition;
+  final Size previewSize;
+}
+
 class _ZoomRail extends StatelessWidget {
   const _ZoomRail({
     required this.minZoom,
@@ -451,14 +518,14 @@ class _BottomControls extends StatelessWidget {
     required this.state,
     required this.onOpenBatchPreview,
     required this.onCapture,
-    required this.onOpenUploadManager,
+    required this.onLensSelected,
     required this.onUploadCurrentBatch,
   });
 
   final CameraState state;
   final VoidCallback onOpenBatchPreview;
   final VoidCallback onCapture;
-  final VoidCallback onOpenUploadManager;
+  final ValueChanged<CameraLensDirection> onLensSelected;
   final VoidCallback onUploadCurrentBatch;
 
   @override
@@ -473,17 +540,12 @@ class _BottomControls extends StatelessWidget {
           spacing: 8,
           children: state.zoomPresets
               .map(
-                (preset) => ChoiceChip(
+                (preset) => _ZoomPresetButton(
+                  label: '${preset.toStringAsFixed(preset >= 1 ? 0 : 1)}x',
                   selected: (state.currentZoom - preset).abs() < 0.2,
-                  label: Text(
-                    '${preset.toStringAsFixed(preset >= 1 ? 0 : 1)}x',
-                  ),
-                  onSelected: (_) => context.read<CameraBloc>().add(
+                  onTap: () => context.read<CameraBloc>().add(
                     CameraZoomPresetSelected(preset),
                   ),
-                  labelStyle: const TextStyle(color: Colors.white),
-                  selectedColor: const Color(0xFF2F6CFF),
-                  backgroundColor: Colors.black.withValues(alpha: 0.35),
                 ),
               )
               .toList(growable: false),
@@ -524,13 +586,15 @@ class _BottomControls extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            IconButton.filled(
-              onPressed: onOpenUploadManager,
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white.withValues(alpha: 0.18),
-                foregroundColor: Colors.white,
-              ),
-              icon: const Icon(Icons.arrow_upward_rounded),
+            _CameraSwitchButton(
+              canSwitchCamera: state.hasFrontLens && state.hasBackLens,
+              onPressed: () {
+                final nextDirection =
+                    state.selectedLensDirection == CameraLensDirection.back
+                    ? CameraLensDirection.front
+                    : CameraLensDirection.back;
+                onLensSelected(nextDirection);
+              },
             ),
           ],
         ),
@@ -545,6 +609,66 @@ class _BottomControls extends StatelessWidget {
           label: Text('Upload Batch (${state.capturedPhotoPaths.length})'),
         ),
       ],
+    );
+  }
+}
+
+class _ZoomPresetButton extends StatelessWidget {
+  const _ZoomPresetButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: selected ? Colors.white : const Color(0xCC3A4047),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? const Color(0xFF1A1D20) : Colors.white70,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CameraSwitchButton extends StatelessWidget {
+  const _CameraSwitchButton({
+    required this.canSwitchCamera,
+    required this.onPressed,
+  });
+
+  final bool canSwitchCamera;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton.filled(
+      onPressed: canSwitchCamera ? onPressed : null,
+      style: IconButton.styleFrom(
+        backgroundColor: const Color(0xCC3A4047),
+        disabledBackgroundColor: const Color(0x803A4047),
+        foregroundColor: Colors.white,
+      ),
+      icon: const Icon(Icons.cameraswitch_rounded),
     );
   }
 }

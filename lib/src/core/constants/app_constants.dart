@@ -28,4 +28,5 @@ class AppConstants {
   static const String uploadQueueKey = 'upload_queue_items';
   static const String uploadSyncTaskName = 'upload_sync_task';
   static const String uploadSyncUniqueName = 'upload_sync_periodic_task';
+  static const String uploadSyncOneOffUniqueName = 'upload_sync_one_off_task';
 }

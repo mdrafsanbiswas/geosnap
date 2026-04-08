@@ -31,6 +31,7 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
     on<UploadQueueItemsUpdated>(_onItemsUpdated);
     on<UploadQueueNetworkChanged>(_onNetworkChanged);
     on<UploadQueueRefreshed>(_onRefreshed);
+    on<UploadQueueAppResumed>(_onAppResumed);
     on<UploadQueueMessageCleared>(_onMessageCleared);
   }
 
@@ -178,8 +179,8 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
       state.copyWith(
         isOnline: event.isOnline,
         message: event.isOnline
-            ? 'Network restored. Retrying pending uploads.'
-            : 'Network lost. Uploads will stay in pending queue.',
+            ? 'Network restored. Pending uploads are resuming automatically.'
+            : 'Network lost. Uploads are queued and will resume automatically.',
       ),
     );
 
@@ -212,6 +213,27 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
     );
   }
 
+  Future<void> _onAppResumed(
+    UploadQueueAppResumed event,
+    Emitter<UploadQueueState> emit,
+  ) async {
+    final items = await _getUploadItems();
+    final isOnline = await _hasNetworkAccess();
+
+    emit(
+      state.copyWith(
+        status: UploadQueueViewStatus.ready,
+        items: List<UploadItem>.unmodifiable(items),
+        isOnline: isOnline,
+        clearMessage: true,
+      ),
+    );
+
+    if (isOnline && _hasRetryableItems(items)) {
+      add(const UploadQueueProcessRequested(silent: true, fromAutoRetry: true));
+    }
+  }
+
   void _onMessageCleared(
     UploadQueueMessageCleared event,
     Emitter<UploadQueueState> emit,
@@ -229,11 +251,11 @@ class UploadQueueBloc extends Bloc<UploadQueueEvent, UploadQueueState> {
 
   String _buildCompletionMessage(bool isOnline, int retryableCount) {
     if (!isOnline) {
-      return 'No stable network. Pending uploads will retry automatically.';
+      return 'No stable network. Uploads are queued and will resume on reconnect.';
     }
 
     if (retryableCount > 0) {
-      return 'Some files are still pending and will retry in background.';
+      return 'Some files are still queued and will auto-upload once connectivity is stable.';
     }
 
     return 'Batch uploaded successfully.';

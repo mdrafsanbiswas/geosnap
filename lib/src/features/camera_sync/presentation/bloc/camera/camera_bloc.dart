@@ -19,12 +19,14 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     on<CameraFocusPointRequested>(_onFocusPointRequested);
     on<CameraFocusIndicatorCleared>(_onFocusIndicatorCleared);
     on<CameraCaptureRequested>(_onCaptureRequested);
+    on<CameraLensSelected>(_onLensSelected);
     on<CameraPhotoRemoved>(_onPhotoRemoved);
     on<CameraBatchCleared>(_onBatchCleared);
     on<CameraMessageCleared>(_onMessageCleared);
   }
 
   CameraController? _cameraController;
+  List<CameraDescription> _availableCameras = const [];
 
   CameraController? get cameraController => _cameraController;
 
@@ -37,8 +39,8 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     await _disposeController();
 
     try {
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) {
+      _availableCameras = await availableCameras();
+      if (_availableCameras.isEmpty) {
         emit(
           state.copyWith(
             status: CameraViewStatus.error,
@@ -49,42 +51,12 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
       }
 
       final selectedCamera =
-          cameras
-              .where(
-                (camera) => camera.lensDirection == CameraLensDirection.back,
-              )
-              .firstOrNull ??
-          cameras.first;
-
-      final controller = CameraController(
+          _findCameraForDirection(CameraLensDirection.back) ??
+          _availableCameras.first;
+      await _initializeControllerForCamera(
         selectedCamera,
-        ResolutionPreset.high,
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.jpeg,
-      );
-
-      _cameraController = controller;
-      await controller.initialize();
-
-      final minZoom = await controller.getMinZoomLevel();
-      final maxZoom = await controller.getMaxZoomLevel();
-      final initialZoom = 1.0.clamp(minZoom, maxZoom).toDouble();
-      await controller.setZoomLevel(initialZoom);
-      try {
-        await controller.setFocusMode(FocusMode.auto);
-      } catch (_) {
-        // Not all devices expose focus mode controls consistently.
-      }
-
-      emit(
-        state.copyWith(
-          status: CameraViewStatus.ready,
-          minZoom: minZoom,
-          maxZoom: maxZoom,
-          currentZoom: initialZoom,
-          zoomPresets: _buildZoomPresets(minZoom, maxZoom),
-          clearMessage: true,
-        ),
+        emit,
+        clearMessage: true,
       );
     } on CameraException catch (error) {
       emit(
@@ -110,6 +82,70 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     Emitter<CameraState> emit,
   ) async {
     await _onInitialized(const CameraInitialized(), emit);
+  }
+
+  Future<void> _onLensSelected(
+    CameraLensSelected event,
+    Emitter<CameraState> emit,
+  ) async {
+    final currentController = _cameraController;
+    if (currentController?.value.isTakingPicture ?? false) {
+      return;
+    }
+
+    if (_availableCameras.isEmpty) {
+      return;
+    }
+
+    final selectedCamera = _findCameraForDirection(event.lensDirection);
+    if (selectedCamera == null) {
+      emit(
+        state.copyWith(
+          message: 'Selected camera lens is not available on this device.',
+        ),
+      );
+      return;
+    }
+
+    if (state.selectedLensDirection == selectedCamera.lensDirection &&
+        currentController != null &&
+        currentController.value.isInitialized) {
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        status: CameraViewStatus.loading,
+        clearMessage: true,
+        clearFocusPoint: true,
+      ),
+    );
+
+    await _disposeController();
+
+    try {
+      await _initializeControllerForCamera(
+        selectedCamera,
+        emit,
+        clearMessage: true,
+      );
+    } on CameraException catch (error) {
+      emit(
+        state.copyWith(
+          status: _isPermissionError(error)
+              ? CameraViewStatus.permissionDenied
+              : CameraViewStatus.error,
+          message: _messageForCameraError(error),
+        ),
+      );
+    } catch (_) {
+      emit(
+        state.copyWith(
+          status: CameraViewStatus.error,
+          message: 'Unable to switch camera right now.',
+        ),
+      );
+    }
   }
 
   Future<void> _onZoomChanged(
@@ -146,6 +182,21 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
       (event.tapPosition.dy / previewHeight).clamp(0, 1).toDouble(),
     );
 
+    final markerId = state.focusMarkerId + 1;
+    emit(
+      state.copyWith(
+        focusPoint: event.indicatorPosition ?? event.tapPosition,
+        focusMarkerId: markerId,
+      ),
+    );
+    unawaited(
+      Future<void>.delayed(const Duration(milliseconds: 1300), () {
+        if (!isClosed) {
+          add(CameraFocusIndicatorCleared(markerId));
+        }
+      }),
+    );
+
     try {
       await controller.setFocusPoint(normalizedPoint);
       try {
@@ -153,19 +204,6 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
       } catch (_) {
         // Exposure point controls can be unsupported on some devices.
       }
-
-      final markerId = state.focusMarkerId + 1;
-      emit(
-        state.copyWith(focusPoint: event.tapPosition, focusMarkerId: markerId),
-      );
-
-      unawaited(
-        Future<void>.delayed(const Duration(milliseconds: 900), () {
-          if (!isClosed) {
-            add(CameraFocusIndicatorCleared(markerId));
-          }
-        }),
-      );
     } catch (_) {
       // Keep tap-to-focus best-effort and non-blocking for UX.
     }
@@ -210,7 +248,7 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
         state.copyWith(
           status: CameraViewStatus.ready,
           capturedPhotoPaths: nextBatch,
-          message: 'Photo added to the batch (${nextBatch.length}).',
+          clearMessage: true,
         ),
       );
     } on CameraException catch (error) {
@@ -303,6 +341,60 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
     } catch (_) {
       // Zoom failures should not crash the camera flow.
     }
+  }
+
+  Future<void> _initializeControllerForCamera(
+    CameraDescription selectedCamera,
+    Emitter<CameraState> emit, {
+    bool clearMessage = false,
+  }) async {
+    final controller = CameraController(
+      selectedCamera,
+      ResolutionPreset.high,
+      enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.jpeg,
+    );
+
+    _cameraController = controller;
+    await controller.initialize();
+
+    final minZoom = await controller.getMinZoomLevel();
+    final maxZoom = await controller.getMaxZoomLevel();
+    final initialZoom = 1.0.clamp(minZoom, maxZoom).toDouble();
+    await controller.setZoomLevel(initialZoom);
+    try {
+      await controller.setFocusMode(FocusMode.auto);
+    } catch (_) {
+      // Not all devices expose focus mode controls consistently.
+    }
+
+    final hasFrontLens = _availableCameras.any(
+      (camera) => camera.lensDirection == CameraLensDirection.front,
+    );
+    final hasBackLens = _availableCameras.any(
+      (camera) => camera.lensDirection == CameraLensDirection.back,
+    );
+
+    emit(
+      state.copyWith(
+        status: CameraViewStatus.ready,
+        minZoom: minZoom,
+        maxZoom: maxZoom,
+        currentZoom: initialZoom,
+        zoomPresets: _buildZoomPresets(minZoom, maxZoom),
+        selectedLensDirection: selectedCamera.lensDirection,
+        hasFrontLens: hasFrontLens,
+        hasBackLens: hasBackLens,
+        clearFocusPoint: true,
+        clearMessage: clearMessage,
+      ),
+    );
+  }
+
+  CameraDescription? _findCameraForDirection(CameraLensDirection direction) {
+    return _availableCameras
+        .where((camera) => camera.lensDirection == direction)
+        .firstOrNull;
   }
 
   Future<String> _persistCapturedFile(String sourcePath) async {

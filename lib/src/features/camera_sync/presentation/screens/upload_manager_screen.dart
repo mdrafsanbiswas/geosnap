@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as p;
 
@@ -31,7 +32,20 @@ class UploadManagerScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: const Color(0xFF081022),
         appBar: AppBar(
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+          ),
           backgroundColor: Colors.transparent,
+          leadingWidth: 56,
+          leading: IconButton(
+            onPressed: () => Navigator.maybePop(context),
+            icon: const Icon(Icons.chevron_left_rounded),
+            iconSize: 34,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+          ),
           title: const Text('Upload Manager'),
           foregroundColor: Colors.white,
         ),
@@ -43,48 +57,17 @@ class UploadManagerScreen extends StatelessWidget {
               final previewPaths = sortedItems
                   .map((item) => item.filePath)
                   .toList(growable: false);
+              final hasUploads = sortedItems.isNotEmpty;
 
               return Column(
                 children: [
-                  _SummaryCard(state: state),
-                  const SizedBox(height: 10),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: state.retryableCount == 0
-                                ? null
-                                : () => context.read<UploadQueueBloc>().add(
-                                    const UploadQueueProcessRequested(),
-                                  ),
-                            icon: const Icon(Icons.sync),
-                            label: const Text('Retry Pending'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => context
-                                .read<UploadQueueBloc>()
-                                .add(const UploadQueueRefreshed()),
-                            icon: const Icon(Icons.refresh_rounded),
-                            label: const Text('Refresh'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  if (hasUploads) ...[
+                    _SummaryCard(state: state),
+                    const SizedBox(height: 12),
+                  ],
                   Expanded(
-                    child: sortedItems.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No pending uploads.',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                          )
+                    child: !hasUploads
+                        ? _EmptyUploadState(isOnline: state.isOnline)
                         : ListView.builder(
                             itemCount: sortedItems.length,
                             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -118,6 +101,55 @@ class UploadManagerScreen extends StatelessWidget {
                 ],
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyUploadState extends StatelessWidget {
+  const _EmptyUploadState({required this.isOnline});
+
+  final bool isOnline;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusText = isOnline
+        ? 'New uploads will appear here and start syncing automatically.'
+        : 'You are offline. Captured photos will queue here and auto-resume once internet is back.';
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: const Color(0xFF0F1A36),
+            border: Border.all(color: const Color(0x334885FF)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_upload_outlined, color: Colors.white70),
+              const SizedBox(height: 12),
+              const Text(
+                'No uploads yet',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                statusText,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, height: 1.3),
+              ),
+            ],
           ),
         ),
       ),

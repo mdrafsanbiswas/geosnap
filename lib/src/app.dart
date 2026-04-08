@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'features/camera_sync/background/upload_sync_worker.dart';
 import 'features/camera_sync/domain/repositories/upload_queue_repository.dart';
 import 'features/camera_sync/domain/usecases/enqueue_upload_batch.dart';
 import 'features/camera_sync/domain/usecases/get_upload_items.dart';
@@ -12,7 +16,9 @@ import 'features/camera_sync/presentation/bloc/camera/camera_bloc.dart';
 import 'features/camera_sync/presentation/bloc/camera/camera_event.dart';
 import 'features/camera_sync/presentation/bloc/upload_queue/upload_queue_bloc.dart';
 import 'features/camera_sync/presentation/bloc/upload_queue/upload_queue_event.dart';
+import 'features/camera_sync/presentation/bloc/upload_queue/upload_queue_state.dart';
 import 'features/camera_sync/presentation/screens/camera_preview_screen.dart';
+import 'features/camera_sync/presentation/services/upload_progress_notification_service.dart';
 import 'features/attendance/domain/repositories/attendance_repository.dart';
 import 'features/attendance/domain/usecases/clear_saved_office_location.dart';
 import 'features/attendance/domain/usecases/calculate_distance.dart';
@@ -25,7 +31,7 @@ import 'features/attendance/presentation/bloc/attendance_event.dart';
 import 'features/attendance/presentation/screens/attendance_screen.dart';
 import 'features/home/presentation/screens/starter_screen.dart';
 
-class GeoSnapApp extends StatelessWidget {
+class GeoSnapApp extends StatefulWidget {
   const GeoSnapApp({
     required this.attendanceRepository,
     required this.uploadQueueRepository,
@@ -34,6 +40,103 @@ class GeoSnapApp extends StatelessWidget {
 
   final AttendanceRepository attendanceRepository;
   final UploadQueueRepository uploadQueueRepository;
+
+  @override
+  State<GeoSnapApp> createState() => _GeoSnapAppState();
+}
+
+class _GeoSnapAppState extends State<GeoSnapApp> with WidgetsBindingObserver {
+  late final UploadQueueBloc _uploadQueueBloc;
+  late final StreamSubscription<UploadQueueState> _uploadQueueSubscription;
+  final UploadProgressNotificationService _uploadProgressNotificationService =
+      UploadProgressNotificationService();
+  DateTime? _lastBackgroundSyncRequestedAt;
+  AppLifecycleState _appLifecycleState = AppLifecycleState.resumed;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _uploadQueueBloc = UploadQueueBloc(
+      getUploadItems: GetUploadItemsUseCase(widget.uploadQueueRepository),
+      enqueueUploadBatch: EnqueueUploadBatchUseCase(
+        widget.uploadQueueRepository,
+      ),
+      processPendingUploads: ProcessPendingUploadsUseCase(
+        widget.uploadQueueRepository,
+      ),
+      hasNetworkAccess: HasNetworkAccessUseCase(widget.uploadQueueRepository),
+      watchNetworkAccess: WatchNetworkAccessUseCase(
+        widget.uploadQueueRepository,
+      ),
+    )..add(const UploadQueueInitialized());
+
+    _uploadQueueSubscription = _uploadQueueBloc.stream.listen(
+      _onUploadQueueStateChanged,
+    );
+    unawaited(_uploadProgressNotificationService.initialize());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appLifecycleState = state;
+
+    if (state == AppLifecycleState.resumed) {
+      _uploadQueueBloc.add(const UploadQueueAppResumed());
+      unawaited(_uploadProgressNotificationService.cancel());
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(_updateBackgroundUploadNotification(_uploadQueueBloc.state));
+      unawaited(_requestBackgroundUploadSync());
+    }
+  }
+
+  void _onUploadQueueStateChanged(UploadQueueState state) {
+    unawaited(_updateBackgroundUploadNotification(state));
+  }
+
+  Future<void> _updateBackgroundUploadNotification(
+    UploadQueueState state,
+  ) async {
+    if (!Platform.isAndroid) {
+      return;
+    }
+
+    final inForeground = _appLifecycleState == AppLifecycleState.resumed;
+    if (inForeground) {
+      await _uploadProgressNotificationService.cancel();
+      return;
+    }
+
+    await _uploadProgressNotificationService.showOrUpdate(
+      totalCount: state.totalCount,
+      uploadedCount: state.uploadedCount,
+      uploadingCount: state.uploadingCount,
+      retryableCount: state.retryableCount,
+      isOnline: state.isOnline,
+      progress: state.overallProgress,
+    );
+  }
+
+  Future<void> _requestBackgroundUploadSync() async {
+    final now = DateTime.now();
+    final lastRequestedAt = _lastBackgroundSyncRequestedAt;
+    if (lastRequestedAt != null &&
+        now.difference(lastRequestedAt) < const Duration(seconds: 15)) {
+      return;
+    }
+
+    _lastBackgroundSyncRequestedAt = now;
+    try {
+      await triggerUploadSyncNow();
+    } catch (_) {
+      // Keep lifecycle transitions resilient if scheduler is unavailable.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,29 +163,11 @@ class GeoSnapApp extends StatelessWidget {
       ),
       home: MultiRepositoryProvider(
         providers: [
-          RepositoryProvider.value(value: attendanceRepository),
-          RepositoryProvider.value(value: uploadQueueRepository),
+          RepositoryProvider.value(value: widget.attendanceRepository),
+          RepositoryProvider.value(value: widget.uploadQueueRepository),
         ],
         child: MultiBlocProvider(
-          providers: [
-            BlocProvider(
-              create: (_) => UploadQueueBloc(
-                getUploadItems: GetUploadItemsUseCase(uploadQueueRepository),
-                enqueueUploadBatch: EnqueueUploadBatchUseCase(
-                  uploadQueueRepository,
-                ),
-                processPendingUploads: ProcessPendingUploadsUseCase(
-                  uploadQueueRepository,
-                ),
-                hasNetworkAccess: HasNetworkAccessUseCase(
-                  uploadQueueRepository,
-                ),
-                watchNetworkAccess: WatchNetworkAccessUseCase(
-                  uploadQueueRepository,
-                ),
-              )..add(const UploadQueueInitialized()),
-            ),
-          ],
+          providers: [BlocProvider.value(value: _uploadQueueBloc)],
           child: Builder(
             builder: (context) => StarterScreen(
               onOpenAttendance: () => _openAttendance(context),
@@ -100,17 +185,23 @@ class GeoSnapApp extends StatelessWidget {
         builder: (_) => BlocProvider(
           create: (_) => AttendanceBloc(
             getSavedOfficeLocation: GetSavedOfficeLocationUseCase(
-              attendanceRepository,
+              widget.attendanceRepository,
             ),
-            saveOfficeLocation: SaveOfficeLocationUseCase(attendanceRepository),
+            saveOfficeLocation: SaveOfficeLocationUseCase(
+              widget.attendanceRepository,
+            ),
             clearSavedOfficeLocation: ClearSavedOfficeLocationUseCase(
-              attendanceRepository,
+              widget.attendanceRepository,
             ),
-            getCurrentLocation: GetCurrentLocationUseCase(attendanceRepository),
+            getCurrentLocation: GetCurrentLocationUseCase(
+              widget.attendanceRepository,
+            ),
             watchCurrentLocation: WatchCurrentLocationUseCase(
-              attendanceRepository,
+              widget.attendanceRepository,
             ),
-            calculateDistance: CalculateDistanceUseCase(attendanceRepository),
+            calculateDistance: CalculateDistanceUseCase(
+              widget.attendanceRepository,
+            ),
           )..add(const AttendanceInitialized()),
           child: const AttendanceScreen(),
         ),
@@ -132,5 +223,14 @@ class GeoSnapApp extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _uploadQueueSubscription.cancel();
+    unawaited(_uploadProgressNotificationService.cancel());
+    _uploadQueueBloc.close();
+    super.dispose();
   }
 }

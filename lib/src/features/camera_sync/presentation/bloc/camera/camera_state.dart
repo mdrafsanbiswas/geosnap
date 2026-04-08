@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
 
@@ -20,6 +21,9 @@ class CameraState extends Equatable {
     this.capturedPhotoPaths = const [],
     this.focusPoint,
     this.focusMarkerId = 0,
+    this.selectedLensDirection = CameraLensDirection.back,
+    this.hasFrontLens = false,
+    this.hasBackLens = false,
     this.message,
   });
 
@@ -31,6 +35,9 @@ class CameraState extends Equatable {
   final List<String> capturedPhotoPaths;
   final Offset? focusPoint;
   final int focusMarkerId;
+  final CameraLensDirection selectedLensDirection;
+  final bool hasFrontLens;
+  final bool hasBackLens;
   final String? message;
 
   bool get isReady =>
@@ -48,6 +55,9 @@ class CameraState extends Equatable {
     List<String>? capturedPhotoPaths,
     Offset? focusPoint,
     int? focusMarkerId,
+    CameraLensDirection? selectedLensDirection,
+    bool? hasFrontLens,
+    bool? hasBackLens,
     String? message,
     bool clearFocusPoint = false,
     bool clearMessage = false,
@@ -61,6 +71,10 @@ class CameraState extends Equatable {
       capturedPhotoPaths: capturedPhotoPaths ?? this.capturedPhotoPaths,
       focusPoint: clearFocusPoint ? null : focusPoint ?? this.focusPoint,
       focusMarkerId: focusMarkerId ?? this.focusMarkerId,
+      selectedLensDirection:
+          selectedLensDirection ?? this.selectedLensDirection,
+      hasFrontLens: hasFrontLens ?? this.hasFrontLens,
+      hasBackLens: hasBackLens ?? this.hasBackLens,
       message: clearMessage ? null : message ?? this.message,
     );
   }
@@ -75,6 +89,9 @@ class CameraState extends Equatable {
     capturedPhotoPaths,
     focusPoint,
     focusMarkerId,
+    selectedLensDirection,
+    hasFrontLens,
+    hasBackLens,
     message,
   ];
 }

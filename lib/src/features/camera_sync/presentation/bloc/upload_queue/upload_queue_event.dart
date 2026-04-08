@@ -61,6 +61,10 @@ class UploadQueueRefreshed extends UploadQueueEvent {
   const UploadQueueRefreshed();
 }
 
+class UploadQueueAppResumed extends UploadQueueEvent {
+  const UploadQueueAppResumed();
+}
+
 class UploadQueueMessageCleared extends UploadQueueEvent {
   const UploadQueueMessageCleared();
 }

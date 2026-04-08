@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
 
@@ -38,13 +39,15 @@ class CameraFocusPointRequested extends CameraEvent {
   const CameraFocusPointRequested({
     required this.tapPosition,
     required this.previewSize,
+    this.indicatorPosition,
   });
 
   final Offset tapPosition;
   final Size previewSize;
+  final Offset? indicatorPosition;
 
   @override
-  List<Object?> get props => [tapPosition, previewSize];
+  List<Object?> get props => [tapPosition, previewSize, indicatorPosition];
 }
 
 class CameraFocusIndicatorCleared extends CameraEvent {
@@ -58,6 +61,15 @@ class CameraFocusIndicatorCleared extends CameraEvent {
 
 class CameraCaptureRequested extends CameraEvent {
   const CameraCaptureRequested();
+}
+
+class CameraLensSelected extends CameraEvent {
+  const CameraLensSelected(this.lensDirection);
+
+  final CameraLensDirection lensDirection;
+
+  @override
+  List<Object?> get props => [lensDirection];
 }
 
 class CameraPhotoRemoved extends CameraEvent {

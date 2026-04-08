@@ -14,7 +14,17 @@ class BatchPreviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Current Batch')),
+      appBar: AppBar(
+        leadingWidth: 56,
+        leading: IconButton(
+          onPressed: () => Navigator.maybePop(context),
+          icon: const Icon(Icons.chevron_left_rounded),
+          iconSize: 34,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+        ),
+        title: const Text('Current Batch'),
+      ),
       body: BlocBuilder<CameraBloc, CameraState>(
         builder: (context, state) {
           final photos = state.capturedPhotoPaths;

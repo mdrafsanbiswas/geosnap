@@ -45,3 +45,13 @@ Future<void> registerUploadSyncWorker() async {
     constraints: Constraints(networkType: NetworkType.connected),
   );
 }
+
+Future<void> triggerUploadSyncNow() async {
+  await Workmanager().registerOneOffTask(
+    AppConstants.uploadSyncOneOffUniqueName,
+    AppConstants.uploadSyncTaskName,
+    initialDelay: Duration.zero,
+    existingWorkPolicy: ExistingWorkPolicy.replace,
+    constraints: Constraints(networkType: NetworkType.connected),
+  );
+}
