@@ -31,8 +31,10 @@ class SharedPreferencesUploadQueueLocalDataSource
       }
 
       return decoded
-          .whereType<Map<String, dynamic>>()
-          .map(UploadItemModel.fromMap)
+          .whereType<Map>()
+          .map(
+            (item) => UploadItemModel.fromMap(Map<String, dynamic>.from(item)),
+          )
           .toList(growable: false);
     } catch (_) {
       return const [];
