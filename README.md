@@ -7,12 +7,14 @@ GeoSnap is a Flutter mobile application for location-aware attendance and camera
 An end-to-end look at the product experience:
 
 <p align="center">
-  <img src="assets/screenshots/01-home-feature-selector.png" alt="Home - Feature Selector" width="19%" />
-  <img src="assets/screenshots/02-attendance-gps-warning.png" alt="Attendance - GPS Warning" width="15.5%" />
-  <img src="assets/screenshots/02-attendance-geofence.png" alt="Attendance - Geo-Fence" width="15.5%" />
-  <img src="assets/screenshots/03-camera-batch-capture.png" alt="Camera - Batch Capture" width="15.5%" />
-  <img src="assets/screenshots/04-upload-manager-progress.png" alt="Upload Manager - Queue Progress" width="15.5%" />
-  <img src="assets/screenshots/05-background-upload-notification.png" alt="Background Upload - Notification Progress" width="15.5%" />
+  <img src="assets/screenshots/01-home-feature-selector.png" alt="Home - Feature Selector" width="32%" />
+  <img src="assets/screenshots/02-attendance-gps-warning.png" alt="Attendance - GPS Warning" width="32%" />
+  <img src="assets/screenshots/02-attendance-geofence.png" alt="Attendance - Geo-Fence" width="32%" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/03-camera-batch-capture.png" alt="Camera - Batch Capture" width="32%" />
+  <img src="assets/screenshots/04-upload-manager-progress.png" alt="Upload Manager - Queue Progress" width="32%" />
+  <img src="assets/screenshots/05-background-upload-notification.png" alt="Background Upload - Notification Progress" width="32%" />
 </p>
 
 1. Feature-first home entry point
