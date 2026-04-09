@@ -6,7 +6,7 @@ import '../../domain/entities/geo_point.dart';
 import '../constants/attendance_ui_color.dart';
 import '../constants/attendance_ui_text.dart';
 
-class OfficeLocationCard extends StatelessWidget {
+class OfficeLocationCard extends StatefulWidget {
   const OfficeLocationCard({
     required this.officeLocation,
     required this.currentLocation,
@@ -27,8 +27,29 @@ class OfficeLocationCard extends StatelessWidget {
   final VoidCallback onResetOfficeLocation;
 
   @override
+  State<OfficeLocationCard> createState() => _OfficeLocationCardState();
+}
+
+class _OfficeLocationCardState extends State<OfficeLocationCard> {
+  bool _isMapReady = false;
+
+  @override
+  void didUpdateWidget(covariant OfficeLocationCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final hadPreview =
+        oldWidget.officeLocation != null || oldWidget.currentLocation != null;
+    final hasPreview =
+        widget.officeLocation != null || widget.currentLocation != null;
+    if (hadPreview != hasPreview && _isMapReady) {
+      setState(() {
+        _isMapReady = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final previewLocation = officeLocation ?? currentLocation;
+    final previewLocation = widget.officeLocation ?? widget.currentLocation;
     final screenHeight = MediaQuery.sizeOf(context).height;
     final mapHeight = (screenHeight * 0.28).clamp(170.0, 220.0);
 
@@ -54,9 +75,11 @@ class OfficeLocationCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (officeLocation != null)
+                if (widget.officeLocation != null)
                   TextButton.icon(
-                    onPressed: isLoading ? null : onResetOfficeLocation,
+                    onPressed: widget.isLoading
+                        ? null
+                        : widget.onResetOfficeLocation,
                     icon: const Icon(Icons.refresh_rounded, size: 18),
                     label: const Text(AttendanceUiText.reset),
                     style: TextButton.styleFrom(
@@ -67,7 +90,7 @@ class OfficeLocationCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              officeLocation == null
+              widget.officeLocation == null
                   ? AttendanceUiText.officeHintSet
                   : AttendanceUiText.officeHintLocked,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -80,8 +103,11 @@ class OfficeLocationCard extends StatelessWidget {
               height: mapHeight,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: previewLocation == null
-                    ? DecoratedBox(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (previewLocation == null)
+                      DecoratedBox(
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
@@ -100,7 +126,15 @@ class OfficeLocationCard extends StatelessWidget {
                           ),
                         ),
                       )
-                    : GoogleMap(
+                    else
+                      GoogleMap(
+                        onMapCreated: (_) {
+                          if (!_isMapReady && mounted) {
+                            setState(() {
+                              _isMapReady = true;
+                            });
+                          }
+                        },
                         myLocationEnabled: false,
                         myLocationButtonEnabled: false,
                         zoomControlsEnabled: true,
@@ -117,18 +151,18 @@ class OfficeLocationCard extends StatelessWidget {
                           zoom: 17,
                         ),
                         markers: {
-                          if (officeLocation != null)
+                          if (widget.officeLocation != null)
                             Marker(
                               markerId: const MarkerId(
                                 AttendanceUiText.officeMarkerId,
                               ),
                               position: LatLng(
-                                officeLocation!.latitude,
-                                officeLocation!.longitude,
+                                widget.officeLocation!.latitude,
+                                widget.officeLocation!.longitude,
                               ),
                               zIndexInt: 1,
                               icon:
-                                  officeLocationMarkerIcon ??
+                                  widget.officeLocationMarkerIcon ??
                                   BitmapDescriptor.defaultMarkerWithHue(
                                     BitmapDescriptor.hueRed,
                                   ),
@@ -137,18 +171,18 @@ class OfficeLocationCard extends StatelessWidget {
                                 title: AttendanceUiText.officeMarkerTitle,
                               ),
                             ),
-                          if (currentLocation != null)
+                          if (widget.currentLocation != null)
                             Marker(
                               markerId: const MarkerId(
                                 AttendanceUiText.currentMarkerId,
                               ),
                               position: LatLng(
-                                currentLocation!.latitude,
-                                currentLocation!.longitude,
+                                widget.currentLocation!.latitude,
+                                widget.currentLocation!.longitude,
                               ),
                               zIndexInt: 2,
                               icon:
-                                  currentLocationMarkerIcon ??
+                                  widget.currentLocationMarkerIcon ??
                                   BitmapDescriptor.defaultMarkerWithHue(
                                     BitmapDescriptor.hueAzure,
                                   ),
@@ -159,31 +193,31 @@ class OfficeLocationCard extends StatelessWidget {
                             ),
                         },
                         circles: {
-                          if (officeLocation != null)
+                          if (widget.officeLocation != null)
                             Circle(
                               circleId: const CircleId(
                                 AttendanceUiText.officeRadiusId,
                               ),
                               center: LatLng(
-                                officeLocation!.latitude,
-                                officeLocation!.longitude,
+                                widget.officeLocation!.latitude,
+                                widget.officeLocation!.longitude,
                               ),
                               radius: AppConstants.attendanceRadiusInMeters,
                               strokeColor: AttendanceUiColor.danger,
                               fillColor: AttendanceUiColor.officeRadiusFill,
                               strokeWidth: 2,
                             ),
-                          if (currentLocation != null)
+                          if (widget.currentLocation != null)
                             Circle(
                               circleId: const CircleId(
                                 AttendanceUiText.currentAccuracyId,
                               ),
                               center: LatLng(
-                                currentLocation!.latitude,
-                                currentLocation!.longitude,
+                                widget.currentLocation!.latitude,
+                                widget.currentLocation!.longitude,
                               ),
                               radius: _currentLocationAccuracyRadius(
-                                currentLocation!.accuracyInMeters,
+                                widget.currentLocation!.accuracyInMeters,
                               ),
                               strokeColor: AttendanceUiColor.accuracyStroke,
                               fillColor: AttendanceUiColor.accuracyFill,
@@ -191,6 +225,10 @@ class OfficeLocationCard extends StatelessWidget {
                             ),
                         },
                       ),
+                    if (previewLocation != null && !_isMapReady)
+                      const _MapLoadingOverlay(),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -210,17 +248,17 @@ class OfficeLocationCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (currentLocation != null) ...[
+            if (widget.currentLocation != null) ...[
               const SizedBox(height: 10),
-              _CoordinateText(location: currentLocation!),
+              _CoordinateText(location: widget.currentLocation!),
             ],
             const SizedBox(height: 14),
             SizedBox(
               height: 46,
               child: FilledButton.icon(
-                onPressed: isLoading || officeLocation != null
+                onPressed: widget.isLoading || widget.officeLocation != null
                     ? null
-                    : onSetOfficeLocation,
+                    : widget.onSetOfficeLocation,
                 style: FilledButton.styleFrom(
                   backgroundColor: AttendanceUiColor.brand,
                   disabledBackgroundColor: AttendanceUiColor.btnDisabledBg,
@@ -229,7 +267,7 @@ class OfficeLocationCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                icon: isLoading
+                icon: widget.isLoading
                     ? const SizedBox(
                         width: 18,
                         height: 18,
@@ -237,9 +275,9 @@ class OfficeLocationCard extends StatelessWidget {
                       )
                     : const Icon(Icons.apartment_rounded, size: 18),
                 label: Text(
-                  isLoading
+                  widget.isLoading
                       ? AttendanceUiText.syncingLocation
-                      : officeLocation == null
+                      : widget.officeLocation == null
                       ? AttendanceUiText.setOffice
                       : AttendanceUiText.officeSaved,
                   style: const TextStyle(fontWeight: FontWeight.w700),
@@ -258,6 +296,37 @@ class OfficeLocationCard extends StatelessWidget {
     }
 
     return accuracyInMeters.clamp(16, 42).toDouble();
+  }
+}
+
+class _MapLoadingOverlay extends StatelessWidget {
+  const _MapLoadingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.white70,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              height: 24,
+              width: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.4),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AttendanceUiText.loadingMap,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AttendanceUiColor.body,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

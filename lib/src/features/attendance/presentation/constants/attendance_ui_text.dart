@@ -17,6 +17,7 @@ class AttendanceUiText {
 
   static const officeMarkerTitle = 'Office Location';
   static const currentMarkerTitle = 'Your Current Location';
+  static const loadingMap = 'Loading map...';
   static const officeMarkerId = 'office_location';
   static const currentMarkerId = 'current_location';
   static const officeRadiusId = 'office_radius';
