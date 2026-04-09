@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as p;
@@ -242,7 +243,7 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
 
     try {
       final capturedFile = await controller.takePicture();
-      final persistedPath = await _persistCapturedFile(capturedFile.path);
+      final persistedPath = await _persistCapturedFile(capturedFile);
       final nextBatch = [...state.capturedPhotoPaths, persistedPath];
 
       emit(
@@ -259,11 +260,13 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
           message: _messageForCameraError(error),
         ),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('Capture persistence error: $error');
+      debugPrintStack(stackTrace: stackTrace);
       emit(
         state.copyWith(
           status: CameraViewStatus.ready,
-          message: 'Capture failed. Please try again.',
+          message: 'Capture failed while saving image. Please try again.',
         ),
       );
     }
@@ -435,21 +438,66 @@ class CameraBloc extends Bloc<CameraEvent, CameraState> {
         .firstOrNull;
   }
 
-  Future<String> _persistCapturedFile(String sourcePath) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final captureDirectory = Directory(
-      p.join(directory.path, 'captured_batches'),
-    );
-    if (!await captureDirectory.exists()) {
-      await captureDirectory.create(recursive: true);
+  Future<String> _persistCapturedFile(XFile capturedFile) async {
+    final sourcePath = capturedFile.path;
+    final extension = p.extension(sourcePath);
+    final fileName =
+        'img_${DateTime.now().microsecondsSinceEpoch}'
+        '${extension.isEmpty ? '.jpg' : extension}';
+    final sourceFile = File(sourcePath);
+
+    try {
+      final tempDirectory = await getTemporaryDirectory();
+      final cacheDirectory = Directory(
+        p.join(tempDirectory.path, 'captured_batches'),
+      );
+      if (!await cacheDirectory.exists()) {
+        await cacheDirectory.create(recursive: true);
+      }
+
+      final savedPath = p.join(cacheDirectory.path, fileName);
+      await capturedFile.saveTo(savedPath);
+      return savedPath;
+    } catch (_) {
+      try {
+        final tempDirectory = await getTemporaryDirectory();
+        final cacheDirectory = Directory(
+          p.join(tempDirectory.path, 'captured_batches'),
+        );
+        if (!await cacheDirectory.exists()) {
+          await cacheDirectory.create(recursive: true);
+        }
+
+        final savedPath = p.join(cacheDirectory.path, fileName);
+        final bytes = await capturedFile.readAsBytes();
+        final targetFile = File(savedPath);
+        await targetFile.writeAsBytes(bytes, flush: true);
+        return targetFile.path;
+      } catch (_) {
+        try {
+          if (await sourceFile.exists()) {
+            final tempDirectory = await getTemporaryDirectory();
+            final fallbackDirectory = Directory(
+              p.join(tempDirectory.path, 'captured_batches'),
+            );
+            if (!await fallbackDirectory.exists()) {
+              await fallbackDirectory.create(recursive: true);
+            }
+            final fallbackPath = p.join(fallbackDirectory.path, fileName);
+            final copied = await sourceFile.copy(fallbackPath);
+            return copied.path;
+          }
+        } catch (_) {
+          // Fall through to returning the original captured path.
+        }
+      }
     }
 
-    final fileName =
-        'img_${DateTime.now().microsecondsSinceEpoch}${p.extension(sourcePath)}';
-    final savedPath = p.join(captureDirectory.path, fileName);
-    final sourceFile = File(sourcePath);
-    final copied = await sourceFile.copy(savedPath);
-    return copied.path;
+    if (await sourceFile.exists()) {
+      return sourceFile.path;
+    }
+
+    throw const FileSystemException('Captured image file is unavailable.');
   }
 
   List<double> _buildZoomPresets(double minZoom, double maxZoom) {
