@@ -1,0 +1,62 @@
+name: Android Release APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-release-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Prepare versioned APK artifact
+        id: package
+        shell: bash
+        run: |
+          APP_VERSION="$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)"
+          APK_NAME="geo_snap_v${APP_VERSION}.apk"
+
+          mkdir -p build/ci-artifacts
+          cp build/app/outputs/flutter-apk/app-release.apk "build/ci-artifacts/${APK_NAME}"
+
+          echo "app_version=${APP_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "apk_name=${APK_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: geo_snap_v${{ steps.package.outputs.app_version }}
+          path: build/ci-artifacts/${{ steps.package.outputs.apk_name }}
+          if-no-files-found: error
+
+      - name: Job summary
+        run: |
+          echo "Release APK artifact generated: \`${{ steps.package.outputs.apk_name }}\`" >> "$GITHUB_STEP_SUMMARY"

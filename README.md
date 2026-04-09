@@ -42,6 +42,15 @@ flutter analyze
 flutter test
 ```
 
+## CI/CD (Main Branch Release APK)
+
+GitHub Actions builds a release APK automatically on every push to `main` (including merged PRs).
+
+- Workflow file: `.github/workflows/android-release-apk.yml`
+- Output naming: `geo_snap_vX.Y.Z.apk` (derived from `version:` in `pubspec.yaml`)
+- Current example (from `version: 1.0.0+1`): `geo_snap_v1.0.0.apk`
+- Download location: GitHub Actions run artifacts
+
 ## Screenshots
 
 Add your final screenshots/GIFs in `assets/screenshots/` and reference them below:
