@@ -42,18 +42,20 @@ jobs:
         shell: bash
         run: |
           APP_VERSION="$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)"
-          APK_NAME="geo_snap_v${APP_VERSION}.apk"
+          APK_NAME="geo_snap_release_v${APP_VERSION}.apk"
+          ARTIFACT_NAME="geo_snap_release_v${APP_VERSION}"
 
           mkdir -p build/ci-artifacts
           cp build/app/outputs/flutter-apk/app-release.apk "build/ci-artifacts/${APK_NAME}"
 
           echo "app_version=${APP_VERSION}" >> "$GITHUB_OUTPUT"
           echo "apk_name=${APK_NAME}" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: geo_snap_v${{ steps.package.outputs.app_version }}
+          name: ${{ steps.package.outputs.artifact_name }}
           path: build/ci-artifacts/${{ steps.package.outputs.apk_name }}
           if-no-files-found: error
 
