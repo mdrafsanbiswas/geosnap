@@ -6,16 +6,21 @@ GeoSnap is a Flutter mobile application for location-aware attendance and camera
 
 An end-to-end look at the product experience:
 
-1. Feature-first home entry point  
-   ![Home - Feature Selector](assets/screenshots/01-home-feature-selector.png)
-2. Geo-fenced attendance with live zone validation  
-   ![Attendance - Geo-Fence](assets/screenshots/02-attendance-geofence.png)
-3. Camera workflow for high-speed batch capture  
-   ![Camera - Batch Capture](assets/screenshots/03-camera-batch-capture.png)
-4. Upload manager with per-item queue visibility  
-   ![Upload Manager - Queue Progress](assets/screenshots/04-upload-manager-progress.png)
-5. Background sync surfaced through system notifications  
-   ![Background Upload - Notification Progress](assets/screenshots/05-background-upload-notification.png)
+<p align="center">
+  <img src="assets/screenshots/01-home-feature-selector.png" alt="Home - Feature Selector" width="19%" />
+  <img src="assets/screenshots/02-attendance-gps-warning.png" alt="Attendance - GPS Warning" width="15.5%" />
+  <img src="assets/screenshots/02-attendance-geofence.png" alt="Attendance - Geo-Fence" width="15.5%" />
+  <img src="assets/screenshots/03-camera-batch-capture.png" alt="Camera - Batch Capture" width="15.5%" />
+  <img src="assets/screenshots/04-upload-manager-progress.png" alt="Upload Manager - Queue Progress" width="15.5%" />
+  <img src="assets/screenshots/05-background-upload-notification.png" alt="Background Upload - Notification Progress" width="15.5%" />
+</p>
+
+1. Feature-first home entry point
+2. GPS-off guardrail that prompts location enablement before attendance
+3. Geo-fenced attendance with live zone validation
+4. Camera workflow for high-speed batch capture
+5. Upload manager with per-item queue visibility
+6. Background sync surfaced through system notifications
 
 ### Key Takeaways
 
