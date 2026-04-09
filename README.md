@@ -75,6 +75,6 @@ flutter test
 GitHub Actions builds a release APK automatically on every push to `main` (including merged PRs).
 
 - Workflow file: `.github/workflows/android-release-apk.yml`
-- Output naming: `geo_snap_vX.Y.Z.apk` (derived from `version:` in `pubspec.yaml`)
-- Current example (from `version: 1.0.0+1`): `geo_snap_v1.0.0.apk`
+- Output naming: `geo_snap_release_vX.Y.Z.apk` (derived from `version:` in `pubspec.yaml`)
+- Current example (from `version: 1.0.0+1`): `geo_snap_release_v1.0.0.apk`
 - Download location: GitHub Actions run artifacts
