@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-release-apk:
@@ -41,9 +43,14 @@ jobs:
         id: package
         shell: bash
         run: |
-          APP_VERSION="$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)"
-          APK_NAME="geo_snap_release_v${APP_VERSION}.apk"
-          ARTIFACT_NAME="geo_snap_release_v${APP_VERSION}"
+          if [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
+            APP_VERSION="${GITHUB_REF_NAME#v}"
+          else
+            APP_VERSION="$(grep -m1 '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)"
+          fi
+
+          APK_NAME="geo_snap_v${APP_VERSION}.apk"
+          ARTIFACT_NAME="geo_snap_v${APP_VERSION}"
 
           mkdir -p build/ci-artifacts
           cp build/app/outputs/flutter-apk/app-release.apk "build/ci-artifacts/${APK_NAME}"
@@ -62,3 +69,13 @@ jobs:
       - name: Job summary
         run: |
           echo "Release APK artifact generated: \`${{ steps.package.outputs.apk_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create GitHub release and upload APK
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Geo Snap v${{ steps.package.outputs.app_version }}
+          files: build/ci-artifacts/${{ steps.package.outputs.apk_name }}
+          fail_on_unmatched_files: true
+          generate_release_notes: true
