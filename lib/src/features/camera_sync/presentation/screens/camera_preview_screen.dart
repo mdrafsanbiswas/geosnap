@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/camera/camera_bloc.dart';
@@ -59,102 +60,110 @@ class _CameraPreviewScreenState extends State<CameraPreviewScreen> {
           },
         ),
       ],
-      child: Scaffold(
-        backgroundColor: CameraSyncUiColor.cameraSurface,
-        body: SafeArea(
-          child: BlocBuilder<CameraBloc, CameraState>(
-            builder: (context, state) {
-              final cameraBloc = context.read<CameraBloc>();
-              final controller = cameraBloc.cameraController;
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
+        child: Scaffold(
+          backgroundColor: CameraSyncUiColor.cameraSurface,
+          body: SafeArea(
+            child: BlocBuilder<CameraBloc, CameraState>(
+              builder: (context, state) {
+                final cameraBloc = context.read<CameraBloc>();
+                final controller = cameraBloc.cameraController;
 
-              if (state.status == CameraViewStatus.loading ||
-                  state.status == CameraViewStatus.initial) {
-                return const Center(child: CircularProgressIndicator());
-              }
+                if (state.status == CameraViewStatus.loading ||
+                    state.status == CameraViewStatus.initial) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-              if (state.status == CameraViewStatus.permissionDenied ||
-                  state.status == CameraViewStatus.error ||
-                  controller == null ||
-                  !controller.value.isInitialized) {
-                return CameraErrorView(
-                  message: state.message ?? CameraSyncUiText.cameraUnavailable,
-                  onRetry: () =>
-                      context.read<CameraBloc>().add(const CameraRetried()),
+                if (state.status == CameraViewStatus.permissionDenied ||
+                    state.status == CameraViewStatus.error ||
+                    controller == null ||
+                    !controller.value.isInitialized) {
+                  return CameraErrorView(
+                    message:
+                        state.message ?? CameraSyncUiText.cameraUnavailable,
+                    onRetry: () =>
+                        context.read<CameraBloc>().add(const CameraRetried()),
+                  );
+                }
+
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onScaleStart: (_) => _baseZoom = state.currentZoom,
+                  onScaleUpdate: (details) {
+                    context.read<CameraBloc>().add(
+                      CameraZoomChanged(_baseZoom * details.scale),
+                    );
+                  },
+                  onTapDown: (details) {
+                    final previewTapDetails = _resolvePreviewTap(
+                      details.globalPosition,
+                    );
+                    if (previewTapDetails == null) {
+                      return;
+                    }
+                    context.read<CameraBloc>().add(
+                      CameraFocusPointRequested(
+                        tapPosition: previewTapDetails.localPosition,
+                        previewSize: previewTapDetails.previewSize,
+                        indicatorPosition: details.localPosition,
+                      ),
+                    );
+                  },
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: CameraPreviewLayer(
+                          controller: controller,
+                          previewKey: _previewKey,
+                        ),
+                      ),
+                      const Positioned.fill(child: CameraOverlay()),
+                      CameraTopBar(
+                        isFlashEnabled: state.isFlashEnabled,
+                        onToggleFlash: () => context.read<CameraBloc>().add(
+                          const CameraFlashToggled(),
+                        ),
+                      ),
+                      Positioned(
+                        right: 8,
+                        top: 110,
+                        bottom: 200,
+                        child: ZoomRail(
+                          minZoom: state.minZoom,
+                          maxZoom: state.maxZoom,
+                          currentZoom: state.currentZoom,
+                          onChanged: (zoom) => context.read<CameraBloc>().add(
+                            CameraZoomChanged(zoom),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        bottom: 18,
+                        child: CameraBottomControls(
+                          state: state,
+                          onOpenBatchPreview: _openBatchPreview,
+                          onCapture: () => context.read<CameraBloc>().add(
+                            const CameraCaptureRequested(),
+                          ),
+                          onLensSelected: (lensDirection) => context
+                              .read<CameraBloc>()
+                              .add(CameraLensSelected(lensDirection)),
+                          onUploadCurrentBatch: () =>
+                              _uploadCurrentBatch(state.capturedPhotoPaths),
+                        ),
+                      ),
+                    ],
+                  ),
                 );
-              }
-
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onScaleStart: (_) => _baseZoom = state.currentZoom,
-                onScaleUpdate: (details) {
-                  context.read<CameraBloc>().add(
-                    CameraZoomChanged(_baseZoom * details.scale),
-                  );
-                },
-                onTapDown: (details) {
-                  final previewTapDetails = _resolvePreviewTap(
-                    details.globalPosition,
-                  );
-                  if (previewTapDetails == null) {
-                    return;
-                  }
-                  context.read<CameraBloc>().add(
-                    CameraFocusPointRequested(
-                      tapPosition: previewTapDetails.localPosition,
-                      previewSize: previewTapDetails.previewSize,
-                      indicatorPosition: details.localPosition,
-                    ),
-                  );
-                },
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: CameraPreviewLayer(
-                        controller: controller,
-                        previewKey: _previewKey,
-                      ),
-                    ),
-                    const Positioned.fill(child: CameraOverlay()),
-                    CameraTopBar(
-                      isFlashEnabled: state.isFlashEnabled,
-                      onToggleFlash: () => context.read<CameraBloc>().add(
-                        const CameraFlashToggled(),
-                      ),
-                    ),
-                    Positioned(
-                      right: 8,
-                      top: 110,
-                      bottom: 200,
-                      child: ZoomRail(
-                        minZoom: state.minZoom,
-                        maxZoom: state.maxZoom,
-                        currentZoom: state.currentZoom,
-                        onChanged: (zoom) => context.read<CameraBloc>().add(
-                          CameraZoomChanged(zoom),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 12,
-                      right: 12,
-                      bottom: 18,
-                      child: CameraBottomControls(
-                        state: state,
-                        onOpenBatchPreview: _openBatchPreview,
-                        onCapture: () => context.read<CameraBloc>().add(
-                          const CameraCaptureRequested(),
-                        ),
-                        onLensSelected: (lensDirection) => context
-                            .read<CameraBloc>()
-                            .add(CameraLensSelected(lensDirection)),
-                        onUploadCurrentBatch: () =>
-                            _uploadCurrentBatch(state.capturedPhotoPaths),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+              },
+            ),
           ),
         ),
       ),

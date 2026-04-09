@@ -60,11 +60,17 @@ cd geosnap
 ```bash
 flutter pub get
 ```
-3. Run on a connected device/emulator:
+3. Add Google Maps API key (required for Android map rendering):
+   - Add this line to `android/local.properties`:
+```properties
+MAPS_API_KEY=your_google_maps_api_key
+```
+   - For CI/CD, set `MAPS_API_KEY` as an environment variable or Gradle property.
+4. Run on a connected device/emulator:
 ```bash
 flutter run
 ```
-4. (Optional) Verify code quality:
+5. (Optional) Verify code quality:
 ```bash
 flutter analyze
 flutter test
