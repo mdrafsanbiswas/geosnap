@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../camera_sync/domain/entities/upload_status.dart';
@@ -18,63 +19,70 @@ class StarterScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFF5F7FC), Color(0xFFE7EDF8)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        body: DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFF5F7FC), Color(0xFFE7EDF8)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Geo Snap',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF0E1B3D),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Geo Snap',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0E1B3D),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Select a feature to continue',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFF546386),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Select a feature to continue',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: const Color(0xFF546386),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  height: _taskCardHeight,
-                  child: _TaskCard(
-                    title: 'Attendance',
-                    subtitle: 'Geo-Fenced Check-in',
-                    description:
-                        'Set office location, track distance, and mark attendance inside 50m.',
-                    icon: Icons.location_pin,
-                    color: const Color(0xFF386BFF),
-                    onTap: onOpenAttendance,
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: _taskCardHeight,
+                    child: _TaskCard(
+                      title: 'Attendance',
+                      subtitle: 'Geo-Fenced Check-in',
+                      description:
+                          'Set office location, track distance, and mark attendance inside 50m.',
+                      icon: Icons.location_pin,
+                      color: const Color(0xFF386BFF),
+                      onTap: onOpenAttendance,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: _taskCardHeight,
-                  child: _TaskCard(
-                    title: 'Camera & Sync',
-                    subtitle: 'Batch Capture Uploads',
-                    description:
-                        'Capture image batches, upload with progress, retain pending queue, and retry automatically.',
-                    icon: Icons.camera_alt_rounded,
-                    color: const Color(0xFF0B172B),
-                    onTap: onOpenCameraSync,
-                    notificationChip: const _UploadQueueNotificationChip(),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: _taskCardHeight,
+                    child: _TaskCard(
+                      title: 'Camera & Sync',
+                      subtitle: 'Batch Capture Uploads',
+                      description:
+                          'Capture image batches, upload with progress, retain pending queue, and retry automatically.',
+                      icon: Icons.camera_alt_rounded,
+                      color: const Color(0xFF0B172B),
+                      onTap: onOpenCameraSync,
+                      notificationChip: const _UploadQueueNotificationChip(),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
